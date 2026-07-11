@@ -13,7 +13,9 @@ using System.Windows.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using ObserwayLabelFlow.App.Infrastructure;
 using ObserwayLabelFlow.App.Services;
+using ObserwayLabelFlow.Core.History;
 using ObserwayLabelFlow.App.ViewModels;
 using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Configuration;
@@ -157,6 +159,60 @@ public partial class MainWindow : Window
         e.Handled = true;
         var factor = e.Delta > 0 ? PreviewZoomStep : 1d / PreviewZoomStep;
         ChangePreviewZoom(factor);
+    }
+
+    private void HistoryGrid_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (FindScrollViewer(HistoryGrid) is not ScrollViewer viewer || viewer.ScrollableWidth <= 0)
+            return;
+
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Shift))
+            return;
+
+        viewer.ScrollToHorizontalOffset(viewer.HorizontalOffset - e.Delta);
+        e.Handled = true;
+    }
+
+    private void HistoryGrid_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+    {
+        if (FindAncestor<DataGridCell>(e.OriginalSource as DependencyObject) is not DataGridCell cell
+            || cell.DataContext is not PrintHistoryEntry entry
+            || DataContext is not MainViewModel vm)
+        {
+            e.Handled = true;
+            return;
+        }
+
+        HistoryGrid.SelectedItem = entry;
+        var cellValue = HistoryGridCellValueResolver.Resolve(cell, entry);
+        vm.PrepareHistoryContextMenu(entry, cellValue);
+    }
+
+    private void HistoryContextMenu_Opened(object sender, RoutedEventArgs e)
+    {
+        if (sender is not ContextMenu menu)
+            return;
+
+        menu.DataContext = HistoryGrid.DataContext;
+
+        if (DataContext is MainViewModel vm)
+            vm.NotifyHistoryContextCommands();
+    }
+
+    private static ScrollViewer? FindScrollViewer(DependencyObject root)
+    {
+        for (var i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(root); i++)
+        {
+            var child = System.Windows.Media.VisualTreeHelper.GetChild(root, i);
+            if (child is ScrollViewer viewer)
+                return viewer;
+
+            var nested = FindScrollViewer(child);
+            if (nested is not null)
+                return nested;
+        }
+
+        return null;
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
@@ -368,6 +424,9 @@ public partial class MainWindow : Window
             return;
 
         if (e.PropertyName == nameof(MainViewModel.SelectedTabIndex) && vm.SelectedTabIndex == 0)
+            ScheduleTrackingFocus();
+
+        if (e.PropertyName == nameof(MainViewModel.TrackingNumber) && string.IsNullOrEmpty(vm.TrackingNumber))
             ScheduleTrackingFocus();
 
         if (e.PropertyName == nameof(MainViewModel.IsBusy) && !vm.IsBusy)

@@ -17,9 +17,9 @@
         UseLayoutRounding="True"
         ShowInTaskbar="True"
         Icon="/Assets/obserway.ico"
-        Height="640" Width="1100"
-        MinWidth="820"
-        MinHeight="540"
+        Height="640" Width="900"
+        MinWidth="720"
+        MinHeight="520"
         FontSize="14"
         Foreground="{StaticResource Text0Brush}">
 
@@ -38,6 +38,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="48" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Custom title bar -->
@@ -68,9 +69,9 @@
                         Margin="0,0,10,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
                 <TextBlock VerticalAlignment="Center"
-                           Margin="0,0,8,0"
+                           Margin="0,0,4,0"
                            Foreground="{StaticResource Text1Brush}"
-                           FontSize="13"
+                           FontSize="12"
                            infra:FieldLabelAssist.LocKey="LanguageLabel"
                            infra:FieldLabelAssist.AppendColon="True" />
                 <Border Style="{StaticResource LanguageComboHost}">
@@ -78,8 +79,8 @@
                               Background="Transparent"
                               BorderThickness="0"
                               Foreground="{StaticResource Text0Brush}"
-                              FontSize="13"
-                              Padding="10,2"
+                              FontSize="12"
+                              Padding="8,1"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding LanguageOptions}"
                               DisplayMemberPath="DisplayName"
@@ -104,123 +105,143 @@
             </StackPanel>
         </Grid>
 
-        <Grid x:Name="LoginContentGrid" Grid.Row="1" Margin="24,20,24,24">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*" MinWidth="200" />
-                <ColumnDefinition Width="24" />
-                <ColumnDefinition Width="400" MinWidth="300" MaxWidth="520" />
-            </Grid.ColumnDefinitions>
+        <Grid x:Name="LoginContentGrid"
+              Grid.Row="1"
+              Margin="24,16,24,16">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="160" />
+                    <ColumnDefinition Width="20" />
+                    <ColumnDefinition Width="360" MinWidth="280" MaxWidth="420" />
+                </Grid.ColumnDefinitions>
 
-            <!-- Left side branding -->
-            <Grid x:Name="BrandingPanel" Grid.Column="0" Margin="0,8,0,0">
-                <StackPanel VerticalAlignment="Center"
-                            HorizontalAlignment="Left">
-                    <Image Style="{StaticResource AppHeroLogoImage}" />
-                    <TextBlock Text="{DynamicResource Loc_BrandLabelFlow}"
-                               FontSize="22"
-                               FontWeight="SemiBold"
-                               Foreground="{StaticResource AccentBrush}"
-                               HorizontalAlignment="Left"
-                               Margin="0,10,0,0" />
+                <!-- Left side branding -->
+                <Grid x:Name="BrandingPanel"
+                      Grid.Column="0"
+                      VerticalAlignment="Center"
+                      Margin="0,4,0,0">
+                    <StackPanel x:Name="BrandingStack"
+                                VerticalAlignment="Center"
+                                HorizontalAlignment="Left">
+                        <Image x:Name="HeroLogoImage" Style="{StaticResource AppHeroLogoImage}" />
+                        <TextBlock x:Name="BrandTitleText"
+                                   Text="{DynamicResource Loc_BrandLabelFlow}"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   HorizontalAlignment="Left"
+                                   Margin="0,10,0,0" />
 
-                    <TextBlock Margin="0,16,0,0"
-                               TextWrapping="Wrap"
-                               FontSize="15"
-                               LineHeight="24"
-                               Foreground="{StaticResource Text1Brush}"
-                               Text="{DynamicResource Loc_Login_Tagline}" />
-                </StackPanel>
-            </Grid>
-
-            <!-- Login card -->
-            <Border x:Name="LoginCard" Grid.Column="2" Style="{StaticResource CardSurface}">
-                <Grid>
-                    <Grid.RowDefinitions>
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="24" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="14" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="18" />
-                        <RowDefinition Height="Auto" />
-                        <RowDefinition Height="16" />
-                        <RowDefinition Height="Auto" />
-                    </Grid.RowDefinitions>
-
-                    <StackPanel Grid.Row="0">
-                        <TextBlock Text="{DynamicResource Loc_Login_Title}"
-                                   Style="{StaticResource PanelHeaderTitle}"
-                                   FontSize="22" />
-                        <TextBlock Margin="0,6,0,0"
-                                   Style="{StaticResource PanelHeaderSubtitle}"
-                                   Text="{DynamicResource Loc_Login_Subtitle}" />
+                        <TextBlock x:Name="TaglineText"
+                                   Margin="0,16,0,0"
+                                   TextWrapping="Wrap"
+                                   FontSize="15"
+                                   LineHeight="24"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   Text="{DynamicResource Loc_Login_Tagline}" />
                     </StackPanel>
-
-                    <StackPanel Grid.Row="2">
-                        <TextBlock infra:FieldLabelAssist.LocKey="Login_Username"
-                                   Style="{StaticResource FilterFieldLabel}" />
-                        <TextBox Style="{StaticResource TextBoxModern}"
-                                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
-                                 Height="50" />
-                    </StackPanel>
-
-                    <StackPanel Grid.Row="4">
-                        <TextBlock infra:FieldLabelAssist.LocKey="Login_Password"
-                                   Style="{StaticResource FilterFieldLabel}" />
-                        <PasswordBox x:Name="PasswordBox"
-                                     Style="{StaticResource PasswordBoxModern}"
-                                     infra:PasswordBoxAssistant.BindPassword="True"
-                                     infra:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                                     Height="50"
-                                     PreviewKeyDown="PasswordBox_PreviewKeyDown" />
-                        <CheckBox Margin="0,12,0,0"
-                                  Style="{StaticResource CheckBoxModern}"
-                                  Foreground="{StaticResource Text0Brush}"
-                                  Content="{DynamicResource Loc_Login_RememberMe}"
-                                  IsChecked="{Binding RememberMe}" />
-                    </StackPanel>
-
-                    <Grid Grid.Row="6">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" MinWidth="140" />
-                            <ColumnDefinition Width="12" />
-                            <ColumnDefinition Width="*" MinWidth="140" />
-                        </Grid.ColumnDefinitions>
-
-                        <Button Grid.Column="0"
-                                Style="{StaticResource ButtonGhost}"
-                                Height="52"
-                                Command="{Binding ClearSavedSessionCommand}"
-                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
-                                Content="{DynamicResource Loc_Login_ClearSession}" />
-
-                        <Button Grid.Column="2"
-                                Style="{StaticResource ButtonPrimaryLarge}"
-                                Height="52"
-                                Command="{Binding LoginCommand}"
-                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
-                                Content="{Binding LoginButtonCaption}" />
-                    </Grid>
-
-                    <ItemsControl Grid.Row="8" ItemsSource="{Binding Errors}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Background="#2A1420"
-                                        BorderBrush="#4A2030"
-                                        BorderThickness="1"
-                                        CornerRadius="{StaticResource R12}"
-                                        Padding="12"
-                                        Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding}"
-                                               Foreground="{StaticResource Text0Brush}"
-                                               TextWrapping="Wrap" />
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-
                 </Grid>
-            </Border>
+
+                <!-- Login card -->
+                <Border x:Name="LoginCard"
+                        Grid.Column="2"
+                        VerticalAlignment="Center"
+                        Style="{StaticResource CardSurface}">
+                    <Grid x:Name="LoginFormGrid">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="24" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="16" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <StackPanel Grid.Row="0">
+                            <TextBlock x:Name="LoginTitleText"
+                                       Text="{DynamicResource Loc_Login_Title}"
+                                       Style="{StaticResource PanelHeaderTitle}"
+                                       FontSize="22" />
+                            <TextBlock x:Name="LoginSubtitleText"
+                                       Margin="0,6,0,0"
+                                       Style="{StaticResource PanelHeaderSubtitle}"
+                                       Text="{DynamicResource Loc_Login_Subtitle}" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="2">
+                            <TextBlock infra:FieldLabelAssist.LocKey="Login_Username"
+                                       Style="{StaticResource FilterFieldLabel}" />
+                            <TextBox x:Name="UsernameBox"
+                                     Style="{StaticResource TextBoxModern}"
+                                     Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="50" />
+                        </StackPanel>
+
+                        <StackPanel Grid.Row="4">
+                            <TextBlock infra:FieldLabelAssist.LocKey="Login_Password"
+                                       Style="{StaticResource FilterFieldLabel}" />
+                            <PasswordBox x:Name="PasswordBox"
+                                         Style="{StaticResource PasswordBoxModern}"
+                                         infra:PasswordBoxAssistant.BindPassword="True"
+                                         infra:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                         Height="50"
+                                         PreviewKeyDown="PasswordBox_PreviewKeyDown" />
+                            <CheckBox x:Name="RememberMeCheckBox"
+                                      Margin="0,12,0,0"
+                                      Style="{StaticResource CheckBoxModern}"
+                                      Foreground="{StaticResource Text0Brush}"
+                                      Content="{DynamicResource Loc_Login_RememberMe}"
+                                      IsChecked="{Binding RememberMe}" />
+                        </StackPanel>
+
+                        <Grid Grid.Row="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" MinWidth="120" />
+                            </Grid.ColumnDefinitions>
+
+                            <Button x:Name="ClearSessionButton"
+                                    Grid.Column="0"
+                                    Style="{StaticResource ButtonGhost}"
+                                    Height="52"
+                                    Command="{Binding ClearSavedSessionCommand}"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                    Content="{DynamicResource Loc_Login_ClearSession}" />
+
+                            <Button x:Name="LoginButton"
+                                    Grid.Column="2"
+                                    Style="{StaticResource ButtonPrimaryLarge}"
+                                    Height="52"
+                                    Command="{Binding LoginCommand}"
+                                    IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                    Content="{Binding LoginButtonCaption}" />
+                        </Grid>
+
+                        <ItemsControl Grid.Row="8" ItemsSource="{Binding Errors}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#2A1420"
+                                            BorderBrush="#4A2030"
+                                            BorderThickness="1"
+                                            CornerRadius="{StaticResource R12}"
+                                            Padding="12"
+                                            Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding}"
+                                                   Foreground="{StaticResource Text0Brush}"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </Grid>
+                </Border>
         </Grid>
 
         <controls:ToastHost Grid.Row="1"
@@ -228,5 +249,25 @@
                             VerticalAlignment="Top"
                             Margin="0,12,20,0"
                             Panel.ZIndex="500" />
+
+        <Border Grid.Row="2" Style="{StaticResource AppStatusFooter}">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource AppFooterText}"
+                           Text="{DynamicResource Loc_AppFooterBrand}" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource AppFooterText}"
+                               Text="{DynamicResource Loc_AppVersionLabel}" />
+                    <TextBlock Style="{StaticResource AppFooterVersionText}"
+                               Margin="6,0,0,0"
+                               Text="{x:Static infra:AppVersionInfo.SemanticVersion}" />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

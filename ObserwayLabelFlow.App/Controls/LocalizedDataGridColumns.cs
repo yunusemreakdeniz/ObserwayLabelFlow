@@ -9,8 +9,14 @@ namespace ObserwayLabelFlow.App.Controls;
 /// DataGrid columns whose headers stay in sync when UI culture changes.
 /// Uses HeaderTemplate + SetResourceReference instead of static Header strings.
 /// </summary>
-public class LocalizedDataGridTextColumn : DataGridCopyableTextColumn
+public class LocalizedDataGridTextColumn : DataGridTextColumn
 {
+    public LocalizedDataGridTextColumn()
+    {
+        if (Application.Current?.TryFindResource("DataGridCellTextBlock") is Style elementStyle)
+            ElementStyle = elementStyle;
+    }
+
     public static readonly DependencyProperty HeaderLocKeyProperty =
         DependencyProperty.Register(
             nameof(HeaderLocKey),

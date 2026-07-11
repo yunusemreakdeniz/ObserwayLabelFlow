@@ -8,10 +8,10 @@
         xmlns:infra="clr-namespace:ObserwayLabelFlow.App.Infrastructure"
         mc:Ignorable="d"
         Title="{DynamicResource Loc_WindowTitle}"
-        Height="720"
-        Width="1440"
-        MinWidth="960"
-        MinHeight="480"
+        Height="760"
+        Width="1180"
+        MinWidth="880"
+        MinHeight="520"
         WindowStartupLocation="CenterScreen"
         ResizeMode="CanResize"
         WindowStyle="None"
@@ -39,6 +39,7 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="52" />
             <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
         </Grid.RowDefinitions>
 
         <!-- Custom title bar -->
@@ -71,9 +72,9 @@
                         Margin="0,0,12,0"
                         shell:WindowChrome.IsHitTestVisibleInChrome="True">
                 <TextBlock VerticalAlignment="Center"
-                           Margin="0,0,8,0"
+                           Margin="0,0,4,0"
                            Foreground="{StaticResource Text1Brush}"
-                           FontSize="14"
+                           FontSize="12"
                            infra:FieldLabelAssist.LocKey="LanguageLabel"
                            infra:FieldLabelAssist.AppendColon="True" />
                 <Border Style="{StaticResource LanguageComboHost}">
@@ -81,8 +82,8 @@
                               Background="Transparent"
                               BorderThickness="0"
                               Foreground="{StaticResource Text0Brush}"
-                              FontSize="14"
-                              Padding="10,2"
+                              FontSize="12"
+                              Padding="8,1"
                               VerticalContentAlignment="Center"
                               ItemsSource="{Binding LanguageOptions}"
                               DisplayMemberPath="DisplayName"
@@ -153,10 +154,10 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="16,4,16,8">
+        <Grid Grid.Row="1" Margin="12,2,12,2">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="8" />
+                <RowDefinition Height="4" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -164,11 +165,13 @@
             <Border Grid.Row="0" Style="{StaticResource ToolbarBar}" Padding="14,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" MinWidth="160" />
+                        <ColumnDefinition Width="*" MinWidth="140" />
                         <ColumnDefinition Width="12" />
-                        <ColumnDefinition Width="Auto" MinWidth="160" MaxWidth="240" />
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="8" />
+                        <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="16" />
-                        <ColumnDefinition Width="Auto" MinWidth="118" />
+                        <ColumnDefinition Width="Auto" MinWidth="100" />
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
@@ -198,12 +201,24 @@
                             VerticalAlignment="Bottom"
                             Style="{StaticResource ButtonPrimary}"
                             Height="42"
-                            MinWidth="160"
-                            FontSize="14"
+                            MinWidth="150"
+                            Padding="14,9"
+                            FontSize="13"
                             Content="{DynamicResource Loc_QueryAndPrint}"
                             Command="{Binding QueryAndPrintCommand}" />
 
-                    <StackPanel Grid.Column="4"
+                    <Button Grid.Column="4"
+                            VerticalAlignment="Bottom"
+                            Style="{StaticResource ButtonGhost}"
+                            Height="42"
+                            MinWidth="88"
+                            Padding="12,8"
+                            FontSize="13"
+                            Content="{DynamicResource Loc_OperationClear}"
+                            ToolTip="{DynamicResource Loc_OperationClearTooltip}"
+                            Command="{Binding ClearOperationCommand}" />
+
+                    <StackPanel Grid.Column="6"
                                 VerticalAlignment="Bottom">
                         <Border Style="{StaticResource StatusPillCompact}"
                                 Margin="0,0,0,6"
@@ -238,55 +253,25 @@
                         SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                         Style="{StaticResource TabControlFullWidth}">
                 <TabItem Header="{DynamicResource Loc_TabOperation}" Style="{StaticResource TabItemFullWidth}">
-                    <Grid Margin="0,4,0,0">
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="2*" MinWidth="280" />
+                            <ColumnDefinition Width="*" MinWidth="220" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="1*" MinWidth="240" MaxWidth="520" />
+                            <ColumnDefinition Width="280" MinWidth="120" MaxWidth="420" />
                         </Grid.ColumnDefinitions>
 
-                        <!-- Label preview (slightly smaller) -->
-                        <Border Grid.Column="0" Style="{StaticResource CardSurface}" Padding="14">
+                        <!-- Label preview -->
+                        <Border Grid.Column="0"
+                                Style="{StaticResource CardSurface}"
+                                Padding="8"
+                                MinWidth="0">
                             <Grid>
                                 <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="8" />
-                                    <RowDefinition Height="*" MinHeight="180" />
-                                    <RowDefinition Height="8" />
+                                    <RowDefinition Height="*" MinHeight="220" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
 
-                                <Grid Grid.Row="0">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="Auto" />
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Style="{StaticResource PanelHeaderTitle}"
-                                                   Foreground="{StaticResource AccentBrush}"
-                                                   Text="{DynamicResource Loc_LabelReadyTitle}"
-                                                   Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        <TextBlock Style="{StaticResource PanelHeaderTitle}"
-                                                   Text="{DynamicResource Loc_PrintScanTitle}"
-                                                   Visibility="{Binding LabelReady, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                                        <TextBlock Style="{StaticResource PanelHeaderSubtitle}"
-                                                   Text="{DynamicResource Loc_LabelReadySubtitle}"
-                                                   Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        <TextBlock Style="{StaticResource PanelHeaderSubtitle}"
-                                                   Text="{DynamicResource Loc_PrintHint}"
-                                                   Visibility="{Binding LabelReady, Converter={StaticResource InverseBooleanToVisibilityConverter}}" />
-                                    </StackPanel>
-                                    <Button Grid.Column="1"
-                                            Style="{StaticResource ButtonPrimary}"
-                                            MinWidth="130"
-                                            Height="40"
-                                            Padding="16,8"
-                                            FontSize="13"
-                                            Command="{Binding PrintLabelCommand}"
-                                            Content="{DynamicResource Loc_Print}" />
-                                </Grid>
-
-                                <Border Grid.Row="2" Style="{StaticResource PreviewViewport}">
+                                <Border Grid.Row="0" Style="{StaticResource PreviewViewport}">
                                     <Grid>
                                         <ScrollViewer x:Name="PdfPreviewScroll"
                                                       HorizontalScrollBarVisibility="Auto"
@@ -328,7 +313,7 @@
                                         </Border>
                                         <Border HorizontalAlignment="Right"
                                                 VerticalAlignment="Top"
-                                                Margin="8"
+                                                Margin="6"
                                                 Padding="4,2"
                                                 CornerRadius="8"
                                                 Background="{DynamicResource ZoomToolbarOverlayBrush}"
@@ -362,64 +347,91 @@
                                                         Content="&#xE7C3;" />
                                             </StackPanel>
                                         </Border>
+                                        <Button HorizontalAlignment="Right"
+                                                VerticalAlignment="Bottom"
+                                                Margin="6"
+                                                Style="{StaticResource ButtonPrimary}"
+                                                MinWidth="112"
+                                                Height="36"
+                                                Padding="14,6"
+                                                FontSize="13"
+                                                Command="{Binding PrintLabelCommand}"
+                                                Content="{DynamicResource Loc_Print}"
+                                                Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                     </Grid>
                                 </Border>
 
-                                <Border Grid.Row="4"
+                                <Border Grid.Row="1"
                                         Style="{StaticResource ToolbarBar}"
-                                        Padding="10,8"
+                                        Margin="0,6,0,0"
+                                        Padding="8,6"
                                         Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="6" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
-                                        <Grid Grid.Row="0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0"
-                                                       infra:FieldLabelAssist.LocKey="HistoryTracking" />
-                                            <TextBox Grid.Column="1"
-                                                     Style="{StaticResource SelectableValueTextBox}"
-                                                     FontSize="14"
-                                                     FontWeight="SemiBold"
-                                                     Text="{Binding DisplayedTrackingNumber, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="2"
-                                                       Style="{StaticResource CaptionText}"
-                                                       Margin="12,0,0,0"
-                                                       infra:FieldLabelAssist.LocKey="ObserwayOrderNumber" />
-                                            <TextBox Grid.Column="3"
-                                                     Style="{StaticResource SelectableValueTextBox}"
-                                                     FontSize="14"
-                                                     Text="{Binding CurrentOrderNumber, Mode=OneWay}" />
-                                        </Grid>
-                                        <Grid Grid.Row="2">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                                <ColumnDefinition Width="Auto" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Style="{StaticResource CaptionText}" Margin="0"
-                                                       infra:FieldLabelAssist.LocKey="AmazonOrderId" />
-                                            <TextBox Grid.Column="1"
-                                                     Style="{StaticResource SelectableValueTextBox}"
-                                                     FontSize="14"
-                                                     Text="{Binding CurrentAmazonOrderId, Mode=OneWay}" />
-                                            <TextBlock Grid.Column="2"
-                                                       Style="{StaticResource CaptionText}"
-                                                       Margin="12,0,0,0"
-                                                       infra:FieldLabelAssist.LocKey="HistoryCarrier" />
-                                            <TextBox Grid.Column="3"
-                                                     Style="{StaticResource SelectableValueTextBox}"
-                                                     FontSize="14"
-                                                     Text="{Binding CurrentCarrierName, Mode=OneWay}" />
-                                        </Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Style="{StaticResource CaptionText}"
+                                                           Margin="0"
+                                                           infra:FieldLabelAssist.LocKey="ObserwayOrderNumber" />
+                                                <TextBox Grid.Column="1"
+                                                         Style="{StaticResource SelectableValueTextBox}"
+                                                         FontSize="12"
+                                                         FontWeight="SemiBold"
+                                                         Text="{Binding CurrentOrderNumber, Mode=OneWay}" />
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Style="{StaticResource CaptionText}"
+                                                           Margin="0"
+                                                           infra:FieldLabelAssist.LocKey="AmazonOrderId" />
+                                                <TextBox Grid.Column="1"
+                                                         Style="{StaticResource SelectableValueTextBox}"
+                                                         FontSize="12"
+                                                         Text="{Binding CurrentAmazonOrderId, Mode=OneWay}" />
+                                            </Grid>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Style="{StaticResource CaptionText}"
+                                                           Margin="0"
+                                                           infra:FieldLabelAssist.LocKey="HistoryTracking" />
+                                                <TextBox Grid.Column="1"
+                                                         Style="{StaticResource SelectableValueTextBox}"
+                                                         FontSize="12"
+                                                         FontWeight="SemiBold"
+                                                         Text="{Binding DisplayedTrackingNumber, Mode=OneWay}" />
+                                            </Grid>
+                                            <Grid Margin="0,4,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto" />
+                                                    <ColumnDefinition Width="*" />
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Style="{StaticResource CaptionText}"
+                                                           Margin="0"
+                                                           infra:FieldLabelAssist.LocKey="HistoryCarrier" />
+                                                <TextBox Grid.Column="1"
+                                                         Style="{StaticResource SelectableValueTextBox}"
+                                                         FontSize="12"
+                                                         Text="{Binding CurrentCarrierName, Mode=OneWay}" />
+                                            </Grid>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </Grid>
@@ -427,24 +439,27 @@
 
                         <GridSplitter Grid.Column="1"
                                       Style="{StaticResource GridSplitterModern}"
-                                      ResizeBehavior="PreviousAndNext" />
+                                      ResizeBehavior="PreviousAndNext"
+                                      ResizeDirection="Columns"
+                                      VerticalAlignment="Stretch"
+                                      HorizontalAlignment="Stretch" />
 
                         <!-- Products sidebar -->
-                        <Border Grid.Column="2" Style="{StaticResource CardSurface}" Padding="14">
+                        <Border Grid.Column="2"
+                                Style="{StaticResource CardSurface}"
+                                Padding="10"
+                                MinWidth="0">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
-                                    <RowDefinition Height="10" />
+                                    <RowDefinition Height="8" />
                                     <RowDefinition Height="*" />
                                 </Grid.RowDefinitions>
 
                                 <Grid Grid.Row="0">
-                                    <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Style="{StaticResource PanelHeaderTitle}"
-                                                   Text="{DynamicResource Loc_ProductsSectionTitle}" />
-                                        <TextBlock Style="{StaticResource PanelHeaderSubtitle}"
-                                                   Text="{DynamicResource Loc_ProductsSectionHint}" />
-                                    </StackPanel>
+                                    <TextBlock VerticalAlignment="Center"
+                                               Style="{StaticResource PanelHeaderTitle}"
+                                               Text="{DynamicResource Loc_ProductsSectionTitle}" />
                                     <Border Style="{StaticResource AccentBadge}"
                                             HorizontalAlignment="Right"
                                             VerticalAlignment="Center"
@@ -477,12 +492,18 @@
                                                                         Background="{StaticResource AccentSoftBrush}"
                                                                         BorderBrush="{StaticResource StrokeBrush}"
                                                                         BorderThickness="1">
+                                                                <Button Style="{StaticResource ProductImageOpenButton}"
+                                                                        Command="{Binding DataContext.OpenProductImageCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        ToolTip="{DynamicResource Loc_ProductImageOpenHint}"
+                                                                        Visibility="{Binding ImageUrl, Converter={StaticResource NonEmptyStringToVisibilityConverter}}">
                                                                     <Image HorizontalAlignment="Center"
                                                                            VerticalAlignment="Center"
                                                                            MaxHeight="132"
                                                                            MaxWidth="300"
                                                                            Stretch="Uniform"
                                                                            Source="{Binding ImageUrl, Converter={StaticResource UrlToImageSourceConverter}}" />
+                                                                </Button>
                                                                 </Border>
                                                                 <TextBlock FontFamily="Segoe MDL2 Assets"
                                                                            Text="&#xE7B8;"
@@ -761,15 +782,21 @@
 
                         <Border Grid.Row="2"
                                 Style="{StaticResource CardSurface}"
-                                Padding="10,8">
-                            <Grid>
+                                Padding="10,8"
+                                ClipToBounds="True">
+                            <Grid ClipToBounds="True">
                             <DataGrid x:Name="HistoryGrid"
                                       ItemsSource="{Binding History}"
                                       Style="{StaticResource DataGridHistory}"
+                                      infra:DataGridColumnScrollAssist.IsEnabled="True"
+                                      EnableColumnVirtualization="False"
                                       VerticalAlignment="Stretch"
                                       HorizontalAlignment="Stretch"
+                                      ScrollViewer.CanContentScroll="False"
                                       ScrollViewer.VerticalScrollBarVisibility="Auto"
                                       ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                      PreviewMouseWheel="HistoryGrid_PreviewMouseWheel"
+                                      PreviewMouseRightButtonDown="HistoryGrid_PreviewMouseRightButtonDown"
                                       AlternationCount="2"
                                       AutoGenerateColumns="False"
                                       HeadersVisibility="Column"
@@ -780,8 +807,24 @@
                                       CanUserReorderColumns="True"
                                       GridLinesVisibility="Horizontal"
                                       HorizontalGridLinesBrush="{StaticResource StrokeBrush}">
+                                <DataGrid.ContextMenu>
+                                    <ContextMenu Style="{StaticResource AppContextMenu}"
+                                                 ItemContainerStyle="{StaticResource AppMenuItem}"
+                                                 Opened="HistoryContextMenu_Opened">
+                                        <MenuItem Header="{DynamicResource Loc_HistoryContextCopy}"
+                                                  Command="{Binding CopyHistoryCellCommand}" />
+                                        <Separator Style="{StaticResource AppContextMenuSeparator}" />
+                                        <MenuItem Header="{DynamicResource Loc_HistorySelect}"
+                                                  Command="{Binding SelectHistoryContextEntryCommand}" />
+                                        <MenuItem Header="{DynamicResource Loc_Print}"
+                                                  Command="{Binding ReprintHistoryContextEntryCommand}" />
+                                        <MenuItem Header="{DynamicResource Loc_HistoryDelete}"
+                                                  Command="{Binding DeleteHistoryContextEntryCommand}" />
+                                    </ContextMenu>
+                                </DataGrid.ContextMenu>
                                 <DataGrid.Columns>
-                                    <DataGridTemplateColumn MinWidth="52"
+                                    <DataGridTemplateColumn infra:HistoryGridColumnRole.Role="Selection"
+                                                            MinWidth="52"
                                                             Width="52"
                                                             CanUserSort="False"
                                                             CanUserResize="False">
@@ -811,29 +854,50 @@
                                     <controls:LocalizedDataGridTextColumn HeaderLocKey="HistoryPrinter" Binding="{Binding PrinterName}" MinWidth="92" Width="124" CanUserResize="True" IsReadOnly="True" />
                                     <controls:LocalizedDataGridTextColumn HeaderLocKey="HistoryPaperSize" Binding="{Binding PaperSize}" MinWidth="80" Width="100" CanUserResize="True" IsReadOnly="True" />
                                     <controls:LocalizedDataGridCheckBoxColumn HeaderLocKey="HistorySuccess" Binding="{Binding Success}" MinWidth="58" Width="64" CanUserResize="True" IsReadOnly="True" />
-                                    <controls:LocalizedDataGridTextColumn HeaderLocKey="HistoryError" Binding="{Binding ErrorMessage}" MinWidth="120" Width="*" CanUserResize="True" IsReadOnly="True" />
-                                    <DataGridTemplateColumn MinWidth="44" Width="48" CanUserResize="True">
+                                    <DataGridTemplateColumn infra:HistoryGridColumnRole.Role="Error"
+                                                            MinWidth="52" Width="56" CanUserResize="False">
                                         <DataGridTemplateColumn.HeaderTemplate>
                                             <DataTemplate>
-                                                <TextBlock FontFamily="Segoe MDL2 Assets"
-                                                           Text="&#xE768;"
-                                                           FontSize="11"
-                                                           Foreground="{StaticResource Text1Brush}"
-                                                           ToolTip="{DynamicResource Loc_HistoryOpenInOperation}" />
+                                                <TextBlock infra:FieldLabelAssist.LocKey="HistoryError"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Text1Brush}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.HeaderTemplate>
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Button Style="{StaticResource DataGridActionButtonDanger}"
+                                                        FontFamily="Segoe MDL2 Assets"
+                                                        FontSize="14"
+                                                        Padding="6,2"
+                                                        ToolTip="{DynamicResource Loc_HistoryViewError}"
+                                                        Command="{Binding DataContext.ShowHistoryErrorCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                        CommandParameter="{Binding}"
+                                                        Content="&#xE783;"
+                                                        Visibility="{Binding ErrorMessage, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+                                    <DataGridTemplateColumn infra:HistoryGridColumnRole.Role="Select"
+                                                            MinWidth="64" Width="72" CanUserResize="True">
+                                        <DataGridTemplateColumn.HeaderTemplate>
+                                            <DataTemplate>
+                                                <TextBlock Text="{DynamicResource Loc_HistorySelect}"
+                                                           FontWeight="SemiBold"
+                                                           Foreground="{StaticResource Text1Brush}" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.HeaderTemplate>
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
                                                 <Button Style="{StaticResource DataGridActionButton}"
-                                                        FontFamily="Segoe MDL2 Assets"
                                                         ToolTip="{DynamicResource Loc_HistoryOpenInOperation}"
                                                         Command="{Binding DataContext.SelectHistoryEntryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
                                                         CommandParameter="{Binding}"
-                                                        Content="&#xE768;" />
+                                                        Content="{DynamicResource Loc_HistorySelect}" />
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn MinWidth="58" Width="66" CanUserResize="True">
+                                    <DataGridTemplateColumn infra:HistoryGridColumnRole.Role="Print"
+                                                            MinWidth="58" Width="66" CanUserResize="True">
                                         <DataGridTemplateColumn.HeaderTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{DynamicResource Loc_HistoryPrint}"
@@ -851,7 +915,8 @@
                                             </DataTemplate>
                                         </DataGridTemplateColumn.CellTemplate>
                                     </DataGridTemplateColumn>
-                                    <DataGridTemplateColumn MinWidth="48" Width="54" CanUserResize="True">
+                                    <DataGridTemplateColumn infra:HistoryGridColumnRole.Role="Delete"
+                                                            MinWidth="48" Width="54" CanUserResize="True">
                                         <DataGridTemplateColumn.HeaderTemplate>
                                             <DataTemplate>
                                                 <TextBlock Text="{DynamicResource Loc_HistoryDelete}"
@@ -924,10 +989,30 @@
             </Border>
         </Grid>
 
-        <controls:ToastHost Grid.RowSpan="2"
+        <controls:ToastHost Grid.Row="1"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
                             Margin="0,60,20,0"
                             Panel.ZIndex="900" />
+
+        <Border Grid.Row="2" Style="{StaticResource AppStatusFooter}">
+            <Grid Margin="18,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Style="{StaticResource AppFooterText}"
+                           Text="{DynamicResource Loc_AppFooterBrand}" />
+                <StackPanel Grid.Column="1"
+                            Orientation="Horizontal"
+                            VerticalAlignment="Center">
+                    <TextBlock Style="{StaticResource AppFooterText}"
+                               Text="{DynamicResource Loc_AppVersionLabel}" />
+                    <TextBlock Style="{StaticResource AppFooterVersionText}"
+                               Margin="6,0,0,0"
+                               Text="{x:Static infra:AppVersionInfo.SemanticVersion}" />
+                </StackPanel>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

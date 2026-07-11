@@ -208,6 +208,21 @@ internal static class OrderPresentationMapper
 
         };
 
+    public static string FormatCarrierDisplay(string? carrierName, string? carrierService)
+    {
+        var name = carrierName?.Trim();
+        var service = carrierService?.Trim();
+
+        if (string.IsNullOrEmpty(name))
+            return service ?? string.Empty;
+
+        if (string.IsNullOrEmpty(service))
+            return name;
+
+        if (name.Contains(service, StringComparison.OrdinalIgnoreCase))
+            return name;
+
+        return $"{name} - {service}";
+    }
+
 }
-
-

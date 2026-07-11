@@ -156,7 +156,7 @@ public sealed class LocalizationService : ILocalizationService
                 list.Add(new CultureOption
                 {
                     Code = ci.Name,
-                    DisplayName = ci.NativeName
+                    DisplayName = GetLanguageDisplayName(ci)
                 });
             }
             catch (CultureNotFoundException ex)
@@ -230,5 +230,24 @@ public sealed class LocalizationService : ILocalizationService
             return tv;
 
         return key;
+    }
+
+    private static string GetLanguageDisplayName(CultureInfo culture)
+    {
+        try
+        {
+            var neutral = CultureInfo.GetCultureInfo(culture.TwoLetterISOLanguageName);
+            var name = neutral.NativeName;
+            var paren = name.IndexOf('(');
+            if (paren > 0)
+                return name[..paren].Trim();
+            return name;
+        }
+        catch
+        {
+            var name = culture.NativeName;
+            var paren = name.IndexOf('(');
+            return paren > 0 ? name[..paren].Trim() : name;
+        }
     }
 }

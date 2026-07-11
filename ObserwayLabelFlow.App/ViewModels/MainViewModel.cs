@@ -6,6 +6,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.Logging;
 using ObserwayLabelFlow.App.Services;
+using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Configuration;
 using ObserwayLabelFlow.Core.History;
 using ObserwayLabelFlow.Core.Orders;
@@ -31,6 +32,10 @@ public sealed partial class MainViewModel : ObservableObject
     private bool _suppressCultureSelection;
     private UserAppSettings? _currentSettings;
     private PrintHistoryEntry? _lastHistoryEntry;
+    private PrintHistoryEntry? _historyContextEntry;
+    private string? _historyContextCellValue;
+
+    public PrintHistoryEntry? HistoryContextEntry => _historyContextEntry;
 
     public MainViewModel(ITokenStore tokenStore, IHistoryService history, ILocalizationService localization, IOrdersApiClient ordersApiClient, IUserSettingsStore userSettings, IApiBaseUrlProvider apiBaseUrl, IAppDialogService dialogs, IHistoryExportService historyExport, ILogger<MainViewModel> logger)
     {
@@ -104,6 +109,7 @@ public sealed partial class MainViewModel : ObservableObject
         if (string.IsNullOrEmpty(value))
         {
             QueryAndPrintCommand.NotifyCanExecuteChanged();
+            ClearOperationCommand.NotifyCanExecuteChanged();
             return;
         }
 
@@ -112,6 +118,7 @@ public sealed partial class MainViewModel : ObservableObject
             TrackingNumber = cleaned;
 
         QueryAndPrintCommand.NotifyCanExecuteChanged();
+        ClearOperationCommand.NotifyCanExecuteChanged();
     }
 
     [ObservableProperty]
@@ -130,9 +137,6 @@ public sealed partial class MainViewModel : ObservableObject
     private string currentCarrierName = string.Empty;
 
     [ObservableProperty]
-    private string currentCarrierService = string.Empty;
-
-    [ObservableProperty]
     private string currentOrderStatus = string.Empty;
 
     [ObservableProperty]
@@ -140,6 +144,9 @@ public sealed partial class MainViewModel : ObservableObject
 
     [ObservableProperty]
     private bool labelReady;
+
+    partial void OnLabelReadyChanged(bool value)
+        => ClearOperationCommand.NotifyCanExecuteChanged();
 
     [ObservableProperty]
     private bool autoPrintOnQuery = true;
@@ -160,6 +167,7 @@ public sealed partial class MainViewModel : ObservableObject
         PdfUrl = value?.ToString() ?? string.Empty;
         LabelReady = value is not null;
         PrintLabelCommand.NotifyCanExecuteChanged();
+        ClearOperationCommand.NotifyCanExecuteChanged();
         LabelPreviewChanged?.Invoke(value);
     }
 
@@ -172,10 +180,14 @@ public sealed partial class MainViewModel : ObservableObject
     {
         QueryAndPrintCommand.NotifyCanExecuteChanged();
         PrintLabelCommand.NotifyCanExecuteChanged();
+        ClearOperationCommand.NotifyCanExecuteChanged();
     }
 
     [ObservableProperty]
     private bool hasActiveOrder;
+
+    partial void OnHasActiveOrderChanged(bool value)
+        => ClearOperationCommand.NotifyCanExecuteChanged();
 
     [ObservableProperty]
     private bool isHistoryEmpty = true;
@@ -635,6 +647,22 @@ public sealed partial class MainViewModel : ObservableObject
         TrackingNumber = string.Empty;
     }
 
+    [RelayCommand(CanExecute = nameof(CanClearOperation))]
+    private void ClearOperation()
+    {
+        TrackingNumber = string.Empty;
+        _lastQueriedTracking = null;
+        _productSummaryIsDefaultHint = true;
+        ProductSummary = _localization.Get("ProductSummaryHint");
+        ProductItems.Clear();
+        ClearCurrentOrderInfo();
+        LastQuerySucceeded = false;
+        LastQueryFailedMessage = null;
+    }
+
+    private bool CanClearOperation()
+        => !IsBusy && (HasActiveOrder || LabelReady || !string.IsNullOrWhiteSpace(TrackingNumber));
+
     private void ApplyOrderToUi(OrderDto order, string scannedTrackingNumber)
     {
         var tracking = string.IsNullOrWhiteSpace(order.TrackingNumber)
@@ -647,8 +675,7 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentOrderNumber = order.ObserwayOrderNumber ?? string.Empty;
         CurrentAmazonOrderId = order.AmazonOrderId ?? string.Empty;
         CurrentCustomerName = order.Customer?.FullName ?? string.Empty;
-        CurrentCarrierName = order.CarrierName ?? string.Empty;
-        CurrentCarrierService = order.CarrierService ?? string.Empty;
+        CurrentCarrierName = OrderPresentationMapper.FormatCarrierDisplay(order.CarrierName, order.CarrierService);
         CurrentOrderStatus = order.OrderStatus ?? string.Empty;
 
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(order.Label, _apiBaseUrl.GetBaseUrl());
@@ -670,7 +697,6 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentAmazonOrderId = string.Empty;
         CurrentCustomerName = string.Empty;
         CurrentCarrierName = string.Empty;
-        CurrentCarrierService = string.Empty;
         CurrentOrderStatus = string.Empty;
         DisplayedTrackingNumber = string.Empty;
         LabelReady = false;
@@ -701,6 +727,71 @@ public sealed partial class MainViewModel : ObservableObject
 
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(entry.PdfUrl, _apiBaseUrl.GetBaseUrl());
         PrintRequested?.Invoke();
+    }
+
+    [RelayCommand]
+    private void ShowHistoryError(PrintHistoryEntry? entry)
+    {
+        if (entry is null || string.IsNullOrWhiteSpace(entry.ErrorMessage))
+            return;
+
+        _dialogs.Show(
+            AppDialogKind.Error,
+            _localization.Get("HistoryError"),
+            entry.ErrorMessage,
+            Application.Current.MainWindow);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanOpenProductImage))]
+    private void OpenProductImage(ProductPreviewItem? item)
+    {
+        if (item is null || string.IsNullOrWhiteSpace(item.ImageUrl))
+            return;
+
+        ProductImagePreviewWindow.Show(item.ImageUrl, item.OfficialName, Application.Current.MainWindow);
+    }
+
+    private static bool CanOpenProductImage(ProductPreviewItem? item)
+        => item is not null && !string.IsNullOrWhiteSpace(item.ImageUrl);
+
+    public void PrepareHistoryContextMenu(PrintHistoryEntry entry, string? cellValue)
+    {
+        _historyContextEntry = entry;
+        _historyContextCellValue = cellValue;
+        NotifyHistoryContextCommands();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCopyHistoryCell))]
+    private void CopyHistoryCell()
+    {
+        if (string.IsNullOrWhiteSpace(_historyContextCellValue))
+            return;
+
+        Clipboard.SetText(_historyContextCellValue);
+    }
+
+    [RelayCommand(CanExecute = nameof(HasHistoryContextEntry))]
+    private async Task SelectHistoryContextEntryAsync()
+        => await SelectHistoryEntryAsync(_historyContextEntry);
+
+    [RelayCommand(CanExecute = nameof(HasHistoryContextEntry))]
+    private void ReprintHistoryContextEntry()
+        => Reprint(_historyContextEntry);
+
+    [RelayCommand(CanExecute = nameof(HasHistoryContextEntry))]
+    private async Task DeleteHistoryContextEntryAsync()
+        => await DeleteHistoryEntryAsync(_historyContextEntry);
+
+    private bool CanCopyHistoryCell() => !string.IsNullOrWhiteSpace(_historyContextCellValue);
+
+    private bool HasHistoryContextEntry() => _historyContextEntry is not null;
+
+    public void NotifyHistoryContextCommands()
+    {
+        CopyHistoryCellCommand.NotifyCanExecuteChanged();
+        SelectHistoryContextEntryCommand.NotifyCanExecuteChanged();
+        ReprintHistoryContextEntryCommand.NotifyCanExecuteChanged();
+        DeleteHistoryContextEntryCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]

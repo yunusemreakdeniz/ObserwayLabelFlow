@@ -12,6 +12,7 @@
     <Product>Obserway LabelFlow</Product>
     <Company>Obserway</Company>
     <Copyright>Copyright © Obserway</Copyright>
+    <!-- Semantic version: major.minor.fix — bump in publish/installer scripts too -->
     <Version>1.0.0</Version>
     <AssemblyVersion>1.0.0.0</AssemblyVersion>
     <FileVersion>1.0.0.0</FileVersion>
