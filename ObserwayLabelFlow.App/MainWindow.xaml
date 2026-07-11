@@ -5,6 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:controls="clr-namespace:ObserwayLabelFlow.App.Controls"
+        xmlns:infra="clr-namespace:ObserwayLabelFlow.App.Infrastructure"
         mc:Ignorable="d"
         Title="{DynamicResource Loc_WindowTitle}"
         Height="720"
@@ -73,7 +74,8 @@
                            Margin="0,0,8,0"
                            Foreground="{StaticResource Text1Brush}"
                            FontSize="14"
-                           Text="{DynamicResource Loc_LanguageLabel}" />
+                           infra:FieldLabelAssist.LocKey="LanguageLabel"
+                           infra:FieldLabelAssist.AppendColon="True" />
                 <Border Style="{StaticResource LanguageComboHost}">
                     <ComboBox Margin="1"
                               Background="Transparent"
@@ -171,7 +173,7 @@
 
                     <StackPanel Grid.Column="0" VerticalAlignment="Center">
                         <TextBlock Style="{StaticResource FilterFieldLabel}"
-                                   Text="{DynamicResource Loc_TrackingSectionTitle}" />
+                                   infra:FieldLabelAssist.LocKey="TrackingSectionTitle" />
                         <Grid>
                             <TextBox x:Name="TrackingBox"
                                      Style="{StaticResource TextBoxModern}"
@@ -286,10 +288,22 @@
 
                                 <Border Grid.Row="2" Style="{StaticResource PreviewViewport}">
                                     <Grid>
-                                        <Image x:Name="PdfPreviewImage"
-                                               Stretch="Uniform"
-                                               Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}" />
-                                        <Border Background="#FF0B1220"
+                                        <ScrollViewer x:Name="PdfPreviewScroll"
+                                                      HorizontalScrollBarVisibility="Auto"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalContentAlignment="Center"
+                                                      VerticalContentAlignment="Center"
+                                                      PreviewMouseWheel="PdfPreviewScroll_PreviewMouseWheel"
+                                                      SizeChanged="PdfPreviewScroll_SizeChanged"
+                                                      Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <Image x:Name="PdfPreviewImage"
+                                                   Stretch="None">
+                                                <Image.LayoutTransform>
+                                                    <ScaleTransform x:Name="PdfPreviewScale" ScaleX="1" ScaleY="1" />
+                                                </Image.LayoutTransform>
+                                            </Image>
+                                        </ScrollViewer>
+                                        <Border Background="{DynamicResource Bg0Brush}"
                                                 Visibility="{Binding LabelReady, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
                                             <StackPanel VerticalAlignment="Center"
                                                         HorizontalAlignment="Center"
@@ -310,6 +324,42 @@
                                                            Style="{StaticResource PanelHeaderSubtitle}"
                                                            TextAlignment="Center"
                                                            Text="{DynamicResource Loc_PrintHint}" />
+                                            </StackPanel>
+                                        </Border>
+                                        <Border HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Margin="8"
+                                                Padding="4,2"
+                                                CornerRadius="8"
+                                                Background="{DynamicResource ZoomToolbarOverlayBrush}"
+                                                BorderBrush="{StaticResource StrokeBrush}"
+                                                BorderThickness="1"
+                                                Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <StackPanel Orientation="Horizontal">
+                                                <Button Style="{StaticResource ChromeIconButton}"
+                                                        Click="PdfZoomOut_Click"
+                                                        ToolTip="{DynamicResource Loc_LabelPreviewZoomOut}"
+                                                        Content="&#xE71F;" />
+                                                <TextBlock x:Name="PdfZoomPercentText"
+                                                           MinWidth="44"
+                                                           Margin="4,0"
+                                                           VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center"
+                                                           TextAlignment="Center"
+                                                           FontSize="12"
+                                                           Foreground="{StaticResource Text0Brush}"
+                                                           Text="100%" />
+                                                <Button Style="{StaticResource ChromeIconButton}"
+                                                        Click="PdfZoomIn_Click"
+                                                        ToolTip="{DynamicResource Loc_LabelPreviewZoomIn}"
+                                                        Content="&#xE8A3;" />
+                                                <Border Width="1"
+                                                        Margin="4,4"
+                                                        Background="{StaticResource StrokeBrush}" />
+                                                <Button Style="{StaticResource ChromeIconButton}"
+                                                        Click="PdfZoomFit_Click"
+                                                        ToolTip="{DynamicResource Loc_LabelPreviewZoomFit}"
+                                                        Content="&#xE7C3;" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -333,7 +383,7 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Style="{StaticResource CaptionText}" Margin="0"
-                                                       Text="{DynamicResource Loc_HistoryTracking}" />
+                                                       infra:FieldLabelAssist.LocKey="HistoryTracking" />
                                             <TextBox Grid.Column="1"
                                                      Style="{StaticResource SelectableValueTextBox}"
                                                      FontSize="14"
@@ -342,7 +392,7 @@
                                             <TextBlock Grid.Column="2"
                                                        Style="{StaticResource CaptionText}"
                                                        Margin="12,0,0,0"
-                                                       Text="{DynamicResource Loc_ObserwayOrderNumber}" />
+                                                       infra:FieldLabelAssist.LocKey="ObserwayOrderNumber" />
                                             <TextBox Grid.Column="3"
                                                      Style="{StaticResource SelectableValueTextBox}"
                                                      FontSize="14"
@@ -356,7 +406,7 @@
                                                 <ColumnDefinition Width="*" />
                                             </Grid.ColumnDefinitions>
                                             <TextBlock Style="{StaticResource CaptionText}" Margin="0"
-                                                       Text="{DynamicResource Loc_AmazonOrderId}" />
+                                                       infra:FieldLabelAssist.LocKey="AmazonOrderId" />
                                             <TextBox Grid.Column="1"
                                                      Style="{StaticResource SelectableValueTextBox}"
                                                      FontSize="14"
@@ -364,7 +414,7 @@
                                             <TextBlock Grid.Column="2"
                                                        Style="{StaticResource CaptionText}"
                                                        Margin="12,0,0,0"
-                                                       Text="{DynamicResource Loc_HistoryCarrier}" />
+                                                       infra:FieldLabelAssist.LocKey="HistoryCarrier" />
                                             <TextBox Grid.Column="3"
                                                      Style="{StaticResource SelectableValueTextBox}"
                                                      FontSize="14"
@@ -456,7 +506,7 @@
                                                                 <Border Style="{StaticResource ProductMetaChip}">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Style="{StaticResource MetaChipLabel}"
-                                                                                   Text="{DynamicResource Loc_ProductAsin}" />
+                                                                                   infra:FieldLabelAssist.LocKey="ProductAsin" />
                                                                         <TextBox Style="{StaticResource SelectableReadOnlyTextBox}"
                                                                                  FontSize="12"
                                                                                  FontWeight="SemiBold"
@@ -467,7 +517,7 @@
                                                                 <Border Style="{StaticResource ProductMetaChip}">
                                                                     <StackPanel Orientation="Horizontal">
                                                                         <TextBlock Style="{StaticResource MetaChipLabel}"
-                                                                                   Text="{DynamicResource Loc_ProductQuantity}" />
+                                                                                   infra:FieldLabelAssist.LocKey="ProductQuantity" />
                                                                         <TextBox Style="{StaticResource SelectableReadOnlyTextBox}"
                                                                                  FontSize="12"
                                                                                  FontWeight="SemiBold"
@@ -480,7 +530,7 @@
 
                                                             <TextBlock Margin="0,8,0,2"
                                                                        Style="{StaticResource CaptionText}"
-                                                                       Text="{DynamicResource Loc_ProductSize}" />
+                                                                       infra:FieldLabelAssist.LocKey="ProductSize" />
                                                             <TextBox Style="{StaticResource SelectableMultilineTextBox}"
                                                                      FontSize="12"
                                                                      Text="{Binding Size, Mode=OneWay}" />
@@ -679,7 +729,7 @@
                                             <TextBlock Style="{StaticResource FilterFieldLabel}"
                                                        FontSize="11"
                                                        Margin="0,0,0,4"
-                                                       Text="{DynamicResource Loc_HistoryFromLabel}" />
+                                                       infra:FieldLabelAssist.LocKey="HistoryFromLabel" />
                                             <Border Style="{StaticResource DatePickerFieldHost}">
                                                 <DatePicker Style="{StaticResource DatePickerField}"
                                                             SelectedDate="{Binding HistoryFromDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
@@ -690,7 +740,7 @@
                                             <TextBlock Style="{StaticResource FilterFieldLabel}"
                                                        FontSize="11"
                                                        Margin="0,0,0,4"
-                                                       Text="{DynamicResource Loc_HistoryToLabel}" />
+                                                       infra:FieldLabelAssist.LocKey="HistoryToLabel" />
                                             <Border Style="{StaticResource DatePickerFieldHost}">
                                                 <DatePicker Style="{StaticResource DatePickerField}"
                                                             SelectedDate="{Binding HistoryToDate, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />

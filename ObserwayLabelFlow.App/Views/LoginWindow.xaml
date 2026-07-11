@@ -71,7 +71,8 @@
                            Margin="0,0,8,0"
                            Foreground="{StaticResource Text1Brush}"
                            FontSize="13"
-                           Text="{DynamicResource Loc_LanguageLabel}" />
+                           infra:FieldLabelAssist.LocKey="LanguageLabel"
+                           infra:FieldLabelAssist.AppendColon="True" />
                 <Border Style="{StaticResource LanguageComboHost}">
                     <ComboBox Margin="1"
                               Background="Transparent"
@@ -156,7 +157,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="2">
-                        <TextBlock Text="{DynamicResource Loc_Login_Username}"
+                        <TextBlock infra:FieldLabelAssist.LocKey="Login_Username"
                                    Style="{StaticResource FilterFieldLabel}" />
                         <TextBox Style="{StaticResource TextBoxModern}"
                                  Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
@@ -164,7 +165,7 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="4">
-                        <TextBlock Text="{DynamicResource Loc_Login_Password}"
+                        <TextBlock infra:FieldLabelAssist.LocKey="Login_Password"
                                    Style="{StaticResource FilterFieldLabel}" />
                         <PasswordBox x:Name="PasswordBox"
                                      Style="{StaticResource PasswordBoxModern}"

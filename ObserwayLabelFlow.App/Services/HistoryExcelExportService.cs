@@ -155,7 +155,7 @@ public sealed class HistoryExcelExportService : IHistoryExportService
                 sheet.Cell(row, 10).Value = product.Length;
                 sheet.Cell(row, 11).Value = product.Width;
                 sheet.Cell(row, 12).Value = product.Height;
-                sheet.Cell(row, 13).Value = product.Weight;
+                sheet.Cell(row, 13).Value = ProductMeasurementFormatter.ToPounds(product.Weight);
                 sheet.Cell(row, 14).Value = FormatProductSize(product, localization);
                 sheet.Cell(row, 15).Value = product.ImageUrl ?? string.Empty;
                 row++;
@@ -221,7 +221,7 @@ public sealed class HistoryExcelExportService : IHistoryExportService
         var length = product.Length.ToString("0.##", CultureInfo.InvariantCulture);
         var width = product.Width.ToString("0.##", CultureInfo.InvariantCulture);
         var height = product.Height.ToString("0.##", CultureInfo.InvariantCulture);
-        var weight = product.Weight.ToString("0.##", CultureInfo.InvariantCulture);
+        var weight = ProductMeasurementFormatter.FormatPounds(product.Weight);
         return localization.Get(
             "ProductSizeFormat",
             length,

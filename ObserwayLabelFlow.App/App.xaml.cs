@@ -9,6 +9,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using ObserwayLabelFlow.App.Data;
+using ObserwayLabelFlow.App.Infrastructure;
 using ObserwayLabelFlow.App.Services;
 using ObserwayLabelFlow.App.ViewModels;
 using ObserwayLabelFlow.App.Views;
@@ -166,7 +167,9 @@ public partial class App : Application
                 db.Database.Migrate();
             }
 
-            await Services.GetRequiredService<ILocalizationService>().InitializeAsync();
+            var localization = Services.GetRequiredService<ILocalizationService>();
+            await localization.InitializeAsync();
+            FieldLabelAssist.EnsureCultureHook(localization);
             await Services.GetRequiredService<IApiBaseUrlProvider>().ReloadAsync();
 
             LoginWindow login;

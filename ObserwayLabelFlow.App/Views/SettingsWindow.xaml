@@ -6,6 +6,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:conv="clr-namespace:ObserwayLabelFlow.App.Converters"
         xmlns:controls="clr-namespace:ObserwayLabelFlow.App.Controls"
+        xmlns:infra="clr-namespace:ObserwayLabelFlow.App.Infrastructure"
         mc:Ignorable="d"
         Title="{DynamicResource Loc_SettingsTitle}"
         Height="780"
@@ -105,10 +106,8 @@
                         </Grid.RowDefinitions>
 
                     <StackPanel Grid.Row="0">
-                        <TextBlock Text="{DynamicResource Loc_SettingsPrinter}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="13"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsPrinter"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <Border CornerRadius="10"
                                 Background="#0B1428"
                                 BorderBrush="{StaticResource StrokeBrush}"
@@ -129,21 +128,17 @@
                     <Border Grid.Row="2" Style="{StaticResource StatusBadge}">
                         <StackPanel>
                             <TextBlock Text="{DynamicResource Loc_SettingsDeviceStatus}"
-                                       FontSize="14"
-                                       FontWeight="SemiBold"
-                                       Foreground="{StaticResource Text0Brush}"
+                                       Style="{StaticResource FilterSectionTitle}"
                                        Margin="0,0,0,10" />
-                            <TextBlock Text="{DynamicResource Loc_SettingsPrinterStatus}"
-                                       FontSize="13"
-                                       Foreground="{StaticResource Text1Brush}" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsPrinterStatus"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <TextBox Style="{StaticResource SelectableValueTextBox}"
                                      FontSize="14"
                                      Foreground="{StaticResource AccentBrush}"
                                      Margin="0,4,0,10"
                                      Text="{Binding PrinterStatusText, Mode=OneWay}" />
-                            <TextBlock Text="{DynamicResource Loc_SettingsScannerStatus}"
-                                       FontSize="13"
-                                       Foreground="{StaticResource Text1Brush}" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsScannerStatus"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <TextBox Style="{StaticResource SelectableValueTextBox}"
                                      FontSize="14"
                                      Foreground="{StaticResource AccentBrush}"
@@ -153,30 +148,24 @@
                     </Border>
 
                     <StackPanel Grid.Row="4">
-                        <TextBlock Text="{DynamicResource Loc_SettingsApiUrl}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="12"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsApiUrl"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <TextBox Style="{StaticResource TextBoxModern}"
                                  Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
                                  Height="46" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="6">
-                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeTimeout}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="13"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsBarcodeTimeout"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <TextBox Style="{StaticResource TextBoxModern}"
                                  Text="{Binding BarcodeTimeoutMs, UpdateSourceTrigger=PropertyChanged}"
                                  Height="46" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="8">
-                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeMode}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="12"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsBarcodeMode"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <Border CornerRadius="10"
                                 Background="#0B1428"
                                 BorderBrush="{StaticResource StrokeBrush}"
@@ -213,10 +202,8 @@
                     </StackPanel>
 
                     <StackPanel Grid.Row="12">
-                        <TextBlock Text="{DynamicResource Loc_SettingsPaperPreset}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="12"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsPaperPreset"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <Border CornerRadius="10"
                                 Background="#0B1428"
                                 BorderBrush="{StaticResource StrokeBrush}"
@@ -241,19 +228,15 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="{DynamicResource Loc_SettingsPaperWidth}"
-                                       Foreground="{StaticResource Text1Brush}"
-                                       FontSize="12"
-                                       Margin="2,0,0,6" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsPaperWidth"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <TextBox Style="{StaticResource TextBoxModern}"
                                      Text="{Binding PaperWidthMm, UpdateSourceTrigger=PropertyChanged}"
                                      Height="46" />
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="{DynamicResource Loc_SettingsPaperHeight}"
-                                       Foreground="{StaticResource Text1Brush}"
-                                       FontSize="12"
-                                       Margin="2,0,0,6" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsPaperHeight"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <TextBox Style="{StaticResource TextBoxModern}"
                                      Text="{Binding PaperHeightMm, UpdateSourceTrigger=PropertyChanged}"
                                      Height="46" />
@@ -267,10 +250,8 @@
                             <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0">
-                            <TextBlock Text="{DynamicResource Loc_SettingsOrientation}"
-                                       Foreground="{StaticResource Text1Brush}"
-                                       FontSize="12"
-                                       Margin="2,0,0,6" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsOrientation"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <Border CornerRadius="10"
                                     Background="#0B1428"
                                     BorderBrush="{StaticResource StrokeBrush}"
@@ -294,10 +275,8 @@
                             </Border>
                         </StackPanel>
                         <StackPanel Grid.Column="2">
-                            <TextBlock Text="{DynamicResource Loc_SettingsDpi}"
-                                       Foreground="{StaticResource Text1Brush}"
-                                       FontSize="12"
-                                       Margin="2,0,0,6" />
+                            <TextBlock infra:FieldLabelAssist.LocKey="SettingsDpi"
+                                       Style="{StaticResource FilterFieldLabel}" />
                             <Border CornerRadius="10"
                                     Background="#0B1428"
                                     BorderBrush="{StaticResource StrokeBrush}"
@@ -317,14 +296,14 @@
                     </Grid>
 
                     <StackPanel Grid.Row="18">
-                        <TextBlock Text="{DynamicResource Loc_SettingsCopies}"
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsCopies"
                                    Style="{StaticResource FilterFieldLabel}" />
                         <TextBox Style="{StaticResource TextBoxModern}"
                                  Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}"
                                  Height="46" />
 
                         <TextBlock Margin="0,16,0,0"
-                                   Text="{DynamicResource Loc_SettingsMargins}"
+                                   infra:FieldLabelAssist.LocKey="SettingsMargins"
                                    Style="{StaticResource FilterFieldLabel}" />
                         <Grid Margin="0,0,0,0">
                             <Grid.ColumnDefinitions>
@@ -338,29 +317,27 @@
                                 <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
                             <StackPanel Grid.Row="0" Grid.Column="0">
-                                <TextBlock Text="{DynamicResource Loc_SettingsMarginTop}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBlock infra:FieldLabelAssist.LocKey="SettingsMarginTop" Style="{StaticResource FilterFieldLabel}" />
                                 <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding TopMarginMm, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="0" Grid.Column="2">
-                                <TextBlock Text="{DynamicResource Loc_SettingsMarginBottom}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBlock infra:FieldLabelAssist.LocKey="SettingsMarginBottom" Style="{StaticResource FilterFieldLabel}" />
                                 <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding BottomMarginMm, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="0">
-                                <TextBlock Text="{DynamicResource Loc_SettingsMarginLeft}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBlock infra:FieldLabelAssist.LocKey="SettingsMarginLeft" Style="{StaticResource FilterFieldLabel}" />
                                 <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding LeftMarginMm, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                             <StackPanel Grid.Row="2" Grid.Column="2">
-                                <TextBlock Text="{DynamicResource Loc_SettingsMarginRight}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBlock infra:FieldLabelAssist.LocKey="SettingsMarginRight" Style="{StaticResource FilterFieldLabel}" />
                                 <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding RightMarginMm, UpdateSourceTrigger=PropertyChanged}" />
                             </StackPanel>
                         </Grid>
                     </StackPanel>
 
                     <StackPanel Grid.Row="20">
-                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeTest}"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   FontSize="12"
-                                   Margin="2,0,0,6" />
+                        <TextBlock infra:FieldLabelAssist.LocKey="SettingsBarcodeTest"
+                                   Style="{StaticResource FilterFieldLabel}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />

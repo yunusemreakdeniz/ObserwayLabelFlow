@@ -361,6 +361,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
+        SelectedTabIndex = 0;
         try
         {
             var tn = TrackingNumber.Trim();

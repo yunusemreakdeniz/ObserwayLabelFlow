@@ -1,3 +1,4 @@
+using ObserwayLabelFlow.App.Infrastructure;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -36,10 +37,12 @@ public class LocalizedDataGridTextColumn : DataGridCopyableTextColumn
         HeaderTemplate = CreateHeaderTemplate(resourceKey);
     }
 
-    internal static DataTemplate CreateHeaderTemplate(string resourceKey)
+    internal static DataTemplate CreateHeaderTemplate(string key)
     {
+        var locKey = key.StartsWith("Loc_", StringComparison.Ordinal) ? key[4..] : key;
         var factory = new FrameworkElementFactory(typeof(TextBlock));
-        factory.SetResourceReference(TextBlock.TextProperty, resourceKey);
+        factory.SetValue(FieldLabelAssist.LocKeyProperty, locKey);
+        factory.SetValue(FieldLabelAssist.AppendColonProperty, true);
         factory.SetValue(TextBlock.FontWeightProperty, FontWeights.SemiBold);
         factory.SetResourceReference(TextBlock.ForegroundProperty, "Text0Brush");
         factory.SetValue(TextBlock.VerticalAlignmentProperty, VerticalAlignment.Center);

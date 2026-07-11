@@ -130,9 +130,9 @@ internal static class OrderPresentationMapper
 
         var height = product.Height.ToString("0.##", CultureInfo.InvariantCulture);
 
-        var weight = product.Weight.ToString("0.##", CultureInfo.InvariantCulture);
+        var weight = ProductMeasurementFormatter.FormatPounds(product.Weight);
 
-        return $"{length} x {width} x {height} cm / {weight} kg";
+        return $"{length} x {width} x {height} cm / {weight} lbs";
 
     }
 

@@ -20,8 +20,9 @@ public static class LabelPdfPreviewRenderer
         if (document.PageCount == 0)
             return null;
 
-        var width = (int)dpi;
-        var height = (int)dpi;
+        var pageSize = document.PageSizes[0];
+        var width = Math.Max(1, (int)Math.Round(pageSize.Width / 72d * dpi));
+        var height = Math.Max(1, (int)Math.Round(pageSize.Height / 72d * dpi));
         using var image = document.Render(0, width, height, PdfRenderFlags.ForPrinting);
         using var bitmap = new Bitmap(image);
         return ConvertToImageSource(bitmap);

@@ -7,6 +7,8 @@ using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -42,6 +44,12 @@ public partial class MainWindow : Window
     private int _labelPreviewGeneration;
     private int _statusTickCount;
     private string? _localLabelFilePath;
+    private double _previewZoom = 1d;
+    private bool _previewFitPending;
+
+    private const double PreviewMinZoom = 0.25d;
+    private const double PreviewMaxZoom = 4d;
+    private const double PreviewZoomStep = 1.25d;
 
     public MainWindow(MainViewModel vm, ISessionService sessionService, IConfiguration configuration, ILocalizationService localization, IUserSettingsStore userSettings, ILabelPdfLoader labelPdfLoader, ILabelPrintService labelPrintService, IApiBaseUrlProvider apiBaseUrl, IAppDialogService dialogs, IToastService toasts, ILogger<MainWindow> logger)
     {
@@ -75,11 +83,80 @@ public partial class MainWindow : Window
     private void ShowPdfPreview(string filePath)
     {
         PdfPreviewImage.Source = LabelPdfPreviewRenderer.RenderFirstPage(filePath);
+        _previewFitPending = true;
+        Dispatcher.BeginInvoke(FitPreviewToViewport, DispatcherPriority.Loaded);
     }
 
     private void ClearPdfPreview()
     {
         PdfPreviewImage.Source = null;
+        ApplyPreviewZoom(1d);
+        _previewFitPending = false;
+    }
+
+    private void ApplyPreviewZoom(double zoom)
+    {
+        _previewZoom = Math.Clamp(zoom, PreviewMinZoom, PreviewMaxZoom);
+        PdfPreviewScale.ScaleX = _previewZoom;
+        PdfPreviewScale.ScaleY = _previewZoom;
+        PdfZoomPercentText.Text = $"{(int)Math.Round(_previewZoom * 100)}%";
+        PdfPreviewImage.InvalidateMeasure();
+        PdfPreviewScroll.InvalidateMeasure();
+    }
+
+    private void FitPreviewToViewport()
+    {
+        if (PdfPreviewImage.Source is not BitmapSource bitmap)
+            return;
+
+        var availableWidth = PdfPreviewScroll.ViewportWidth;
+        var availableHeight = PdfPreviewScroll.ViewportHeight;
+        if (availableWidth <= 0 || availableHeight <= 0)
+        {
+            _previewFitPending = true;
+            return;
+        }
+
+        _previewFitPending = false;
+        var padding = 12d;
+        var scale = Math.Min(
+            (availableWidth - padding) / bitmap.PixelWidth,
+            (availableHeight - padding) / bitmap.PixelHeight);
+
+        if (double.IsNaN(scale) || double.IsInfinity(scale) || scale <= 0)
+            scale = 1d;
+
+        ApplyPreviewZoom(scale);
+    }
+
+    private void ChangePreviewZoom(double factor)
+    {
+        ApplyPreviewZoom(_previewZoom * factor);
+    }
+
+    private void PdfZoomIn_Click(object sender, RoutedEventArgs e)
+        => ChangePreviewZoom(PreviewZoomStep);
+
+    private void PdfZoomOut_Click(object sender, RoutedEventArgs e)
+        => ChangePreviewZoom(1d / PreviewZoomStep);
+
+    private void PdfZoomFit_Click(object sender, RoutedEventArgs e)
+        => FitPreviewToViewport();
+
+    private void PdfPreviewScroll_SizeChanged(object sender, SizeChangedEventArgs e)
+    {
+        if (_previewFitPending)
+            FitPreviewToViewport();
+    }
+
+    private void PdfPreviewScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (!Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+            return;
+
+        e.Handled = true;
+        var factor = e.Delta > 0 ? PreviewZoomStep : 1d / PreviewZoomStep;
+        ChangePreviewZoom(factor);
     }
 
     private void Close_Click(object sender, RoutedEventArgs e)
