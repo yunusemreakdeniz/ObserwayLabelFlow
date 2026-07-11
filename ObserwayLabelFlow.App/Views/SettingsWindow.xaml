@@ -1,0 +1,422 @@
+<Window x:Class="ObserwayLabelFlow.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:conv="clr-namespace:ObserwayLabelFlow.App.Converters"
+        xmlns:controls="clr-namespace:ObserwayLabelFlow.App.Controls"
+        mc:Ignorable="d"
+        Title="{DynamicResource Loc_SettingsTitle}"
+        Height="780"
+        Width="580"
+        MinWidth="480"
+        MinHeight="460"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="CanResize"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="#FF0B1220"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        Icon="/Assets/obserway.ico"
+        FontSize="14">
+
+    <Window.Resources>
+        <conv:EnumLocalizationConverter x:Key="EnumLoc" />
+    </Window.Resources>
+
+    <Window.InputBindings>
+        <KeyBinding Key="Escape" Command="{Binding CancelCommand}" />
+    </Window.InputBindings>
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CornerRadius="18"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="6"
+                            CaptionHeight="48" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Title bar -->
+        <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Border Background="#12000000" CornerRadius="18,18,0,0" />
+            <Border VerticalAlignment="Bottom"
+                    Height="1"
+                    Background="{StaticResource StrokeBrush}"
+                    Opacity="0.45" />
+            <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="18,0,0,0">
+                <Image Style="{StaticResource AppBrandIconImage}" Margin="0,0,10,0" />
+                <TextBlock VerticalAlignment="Center"
+                           Style="{StaticResource PanelHeaderTitle}"
+                           Text="{DynamicResource Loc_SettingsTitle}" />
+            </StackPanel>
+            <Button HorizontalAlignment="Right"
+                    VerticalAlignment="Center"
+                    Margin="0,0,12,0"
+                    Style="{StaticResource ChromeButton}"
+                    shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                    Click="Close_Click"
+                    Content="✕" />
+        </Grid>
+
+        <!-- Content -->
+        <Border Grid.Row="1" Style="{StaticResource CardSurface}" Margin="22,16,22,22" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <ScrollViewer Grid.Row="0"
+                              VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Padding="22,22,22,8">
+                    <Grid>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="18" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="{DynamicResource Loc_SettingsPrinter}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="13"
+                                   Margin="2,0,0,6" />
+                        <Border CornerRadius="10"
+                                Background="#0B1428"
+                                BorderBrush="{StaticResource StrokeBrush}"
+                                BorderThickness="1"
+                                Height="46">
+                            <ComboBox Margin="1"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Foreground="{StaticResource Text0Brush}"
+                                      FontSize="15"
+                                      Padding="10,2"
+                                      VerticalContentAlignment="Center"
+                                      ItemsSource="{Binding InstalledPrinters}"
+                                      SelectedItem="{Binding SelectedPrinterName, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" />
+                        </Border>
+                    </StackPanel>
+
+                    <Border Grid.Row="2" Style="{StaticResource StatusBadge}">
+                        <StackPanel>
+                            <TextBlock Text="{DynamicResource Loc_SettingsDeviceStatus}"
+                                       FontSize="14"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Text0Brush}"
+                                       Margin="0,0,0,10" />
+                            <TextBlock Text="{DynamicResource Loc_SettingsPrinterStatus}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource Text1Brush}" />
+                            <TextBox Style="{StaticResource SelectableValueTextBox}"
+                                     FontSize="14"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Margin="0,4,0,10"
+                                     Text="{Binding PrinterStatusText, Mode=OneWay}" />
+                            <TextBlock Text="{DynamicResource Loc_SettingsScannerStatus}"
+                                       FontSize="13"
+                                       Foreground="{StaticResource Text1Brush}" />
+                            <TextBox Style="{StaticResource SelectableValueTextBox}"
+                                     FontSize="14"
+                                     Foreground="{StaticResource AccentBrush}"
+                                     Margin="0,4,0,0"
+                                     Text="{Binding ScannerStatusText, Mode=OneWay}" />
+                        </StackPanel>
+                    </Border>
+
+                    <StackPanel Grid.Row="4">
+                        <TextBlock Text="{DynamicResource Loc_SettingsApiUrl}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="12"
+                                   Margin="2,0,0,6" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="46" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="6">
+                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeTimeout}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="13"
+                                   Margin="2,0,0,6" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding BarcodeTimeoutMs, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="46" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="8">
+                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeMode}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="12"
+                                   Margin="2,0,0,6" />
+                        <Border CornerRadius="10"
+                                Background="#0B1428"
+                                BorderBrush="{StaticResource StrokeBrush}"
+                                BorderThickness="1"
+                                Height="42">
+                            <ComboBox Margin="1"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Foreground="{StaticResource Text0Brush}"
+                                      FontSize="14"
+                                      Padding="10,2"
+                                      VerticalContentAlignment="Center"
+                                      ItemsSource="{Binding BarcodeModes}"
+                                      SelectedItem="{Binding SelectedBarcodeMode}">
+                                <ComboBox.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding Converter={StaticResource EnumLoc}}" />
+                                    </DataTemplate>
+                                </ComboBox.ItemTemplate>
+                            </ComboBox>
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="10">
+                        <CheckBox Foreground="{StaticResource Text0Brush}"
+                                  FontSize="14"
+                                  Content="{DynamicResource Loc_SettingsAutoPrint}"
+                                  IsChecked="{Binding AutoPrintOnQuery}" />
+                        <CheckBox Margin="0,10,0,0"
+                                  Foreground="{StaticResource Text0Brush}"
+                                  FontSize="14"
+                                  Content="{DynamicResource Loc_SettingsClearAfterScan}"
+                                  IsChecked="{Binding ClearTrackingAfterScan}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="12">
+                        <TextBlock Text="{DynamicResource Loc_SettingsPaperPreset}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="12"
+                                   Margin="2,0,0,6" />
+                        <Border CornerRadius="10"
+                                Background="#0B1428"
+                                BorderBrush="{StaticResource StrokeBrush}"
+                                BorderThickness="1"
+                                Height="42">
+                            <ComboBox Margin="1"
+                                      Background="Transparent"
+                                      BorderThickness="0"
+                                      Foreground="{StaticResource Text0Brush}"
+                                      FontSize="14"
+                                      Padding="10,2"
+                                      VerticalContentAlignment="Center"
+                                      ItemsSource="{Binding PaperSizePresets}"
+                                      SelectedItem="{Binding SelectedPaperSizePreset}" />
+                        </Border>
+                    </StackPanel>
+
+                    <Grid Grid.Row="14">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{DynamicResource Loc_SettingsPaperWidth}"
+                                       Foreground="{StaticResource Text1Brush}"
+                                       FontSize="12"
+                                       Margin="2,0,0,6" />
+                            <TextBox Style="{StaticResource TextBoxModern}"
+                                     Text="{Binding PaperWidthMm, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="46" />
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{DynamicResource Loc_SettingsPaperHeight}"
+                                       Foreground="{StaticResource Text1Brush}"
+                                       FontSize="12"
+                                       Margin="2,0,0,6" />
+                            <TextBox Style="{StaticResource TextBoxModern}"
+                                     Text="{Binding PaperHeightMm, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="46" />
+                        </StackPanel>
+                    </Grid>
+
+                    <Grid Grid.Row="16">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <StackPanel Grid.Column="0">
+                            <TextBlock Text="{DynamicResource Loc_SettingsOrientation}"
+                                       Foreground="{StaticResource Text1Brush}"
+                                       FontSize="12"
+                                       Margin="2,0,0,6" />
+                            <Border CornerRadius="10"
+                                    Background="#0B1428"
+                                    BorderBrush="{StaticResource StrokeBrush}"
+                                    BorderThickness="1"
+                                    Height="42">
+                                <ComboBox Margin="1"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Foreground="{StaticResource Text0Brush}"
+                                          FontSize="14"
+                                          Padding="10,2"
+                                          VerticalContentAlignment="Center"
+                                          ItemsSource="{Binding Orientations}"
+                                          SelectedItem="{Binding SelectedOrientation}">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding Converter={StaticResource EnumLoc}}" />
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2">
+                            <TextBlock Text="{DynamicResource Loc_SettingsDpi}"
+                                       Foreground="{StaticResource Text1Brush}"
+                                       FontSize="12"
+                                       Margin="2,0,0,6" />
+                            <Border CornerRadius="10"
+                                    Background="#0B1428"
+                                    BorderBrush="{StaticResource StrokeBrush}"
+                                    BorderThickness="1"
+                                    Height="42">
+                                <ComboBox Margin="1"
+                                          Background="Transparent"
+                                          BorderThickness="0"
+                                          Foreground="{StaticResource Text0Brush}"
+                                          FontSize="14"
+                                          Padding="10,2"
+                                          VerticalContentAlignment="Center"
+                                          ItemsSource="{Binding DpiOptions}"
+                                          SelectedItem="{Binding SelectedDpi}" />
+                            </Border>
+                        </StackPanel>
+                    </Grid>
+
+                    <StackPanel Grid.Row="18">
+                        <TextBlock Text="{DynamicResource Loc_SettingsCopies}"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding Copies, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="46" />
+
+                        <TextBlock Margin="0,16,0,0"
+                                   Text="{DynamicResource Loc_SettingsMargins}"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <Grid Margin="0,0,0,0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="10" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <StackPanel Grid.Row="0" Grid.Column="0">
+                                <TextBlock Text="{DynamicResource Loc_SettingsMarginTop}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding TopMarginMm, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="0" Grid.Column="2">
+                                <TextBlock Text="{DynamicResource Loc_SettingsMarginBottom}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding BottomMarginMm, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="0">
+                                <TextBlock Text="{DynamicResource Loc_SettingsMarginLeft}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding LeftMarginMm, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                            <StackPanel Grid.Row="2" Grid.Column="2">
+                                <TextBlock Text="{DynamicResource Loc_SettingsMarginRight}" Style="{StaticResource FilterFieldLabel}" />
+                                <TextBox Style="{StaticResource TextBoxModern}" Height="44" Text="{Binding RightMarginMm, UpdateSourceTrigger=PropertyChanged}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="20">
+                        <TextBlock Text="{DynamicResource Loc_SettingsBarcodeTest}"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   FontSize="12"
+                                   Margin="2,0,0,6" />
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="12" />
+                                <ColumnDefinition Width="110" />
+                            </Grid.ColumnDefinitions>
+                            <TextBox Grid.Column="0"
+                                     Style="{StaticResource TextBoxModern}"
+                                     Text="{Binding BarcodeTestInput, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="46" />
+                            <Button Grid.Column="2"
+                                    Style="{StaticResource ButtonPrimary}"
+                                    Height="46"
+                                    Content="{DynamicResource Loc_SettingsTest}"
+                                    Command="{Binding TestBarcodeCommand}" />
+                        </Grid>
+                        <TextBlock Margin="2,8,0,0"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   FontSize="12"
+                                   Text="{Binding BarcodeTestResult}" />
+                    </StackPanel>
+                    </Grid>
+                </ScrollViewer>
+
+                <Border Grid.Row="1"
+                        Padding="22,14,22,22"
+                        BorderBrush="{StaticResource StrokeBrush}"
+                        BorderThickness="0,1,0,0"
+                        Background="{StaticResource CardBrush}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0"
+                                Style="{StaticResource ButtonGhost}"
+                                Height="50"
+                                Content="{DynamicResource Loc_SettingsCancel}"
+                                Command="{Binding CancelCommand}" />
+                        <Button x:Name="SaveButton"
+                                Grid.Column="2"
+                                Style="{StaticResource ButtonPrimaryLarge}"
+                                Height="50"
+                                IsDefault="True"
+                                Content="{DynamicResource Loc_SettingsSave}"
+                                Click="SaveButton_Click" />
+                    </Grid>
+                </Border>
+            </Grid>
+        </Border>
+
+        <controls:ToastHost Grid.Row="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,12,16,0"
+                            Panel.ZIndex="500" />
+    </Grid>
+</Window>

@@ -1,0 +1,13 @@
+# Build / publish
+publish/
+dist/
+installer/redist/MicrosoftEdgeWebview2Setup.exe
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+
+# .NET
+bin/
+obj/

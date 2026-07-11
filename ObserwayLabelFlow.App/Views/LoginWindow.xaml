@@ -1,0 +1,231 @@
+<Window x:Class="ObserwayLabelFlow.App.Views.LoginWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
+        xmlns:infra="clr-namespace:ObserwayLabelFlow.App.Infrastructure"
+        xmlns:controls="clr-namespace:ObserwayLabelFlow.App.Controls"
+        mc:Ignorable="d"
+        Title="{DynamicResource Loc_WindowTitle}"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="CanResize"
+        WindowStyle="None"
+        AllowsTransparency="False"
+        Background="#FF0B1220"
+        SnapsToDevicePixels="True"
+        UseLayoutRounding="True"
+        ShowInTaskbar="True"
+        Icon="/Assets/obserway.ico"
+        Height="640" Width="1100"
+        MinWidth="820"
+        MinHeight="540"
+        FontSize="14"
+        Foreground="{StaticResource Text0Brush}">
+
+    <Window.InputBindings>
+        <KeyBinding Key="Return" Command="{Binding LoginCommand}" />
+    </Window.InputBindings>
+
+    <shell:WindowChrome.WindowChrome>
+        <shell:WindowChrome CornerRadius="18"
+                            GlassFrameThickness="0"
+                            ResizeBorderThickness="6"
+                            CaptionHeight="48" />
+    </shell:WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Custom title bar -->
+        <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <Border Background="#12000000" CornerRadius="18,18,0,0" />
+            <Border VerticalAlignment="Bottom"
+                    Height="1"
+                    Background="{StaticResource StrokeBrush}"
+                    Opacity="0.45" />
+
+            <StackPanel Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="18,0,0,0">
+                <Image Style="{StaticResource AppTitleLogoImage}" />
+                <TextBlock Style="{StaticResource AppProductNameText}"
+                           Text="{DynamicResource Loc_BrandLabelFlow}" />
+            </StackPanel>
+
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="0,0,10,0"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True">
+                <TextBlock VerticalAlignment="Center"
+                           Margin="0,0,8,0"
+                           Foreground="{StaticResource Text1Brush}"
+                           FontSize="13"
+                           Text="{DynamicResource Loc_LanguageLabel}" />
+                <Border Style="{StaticResource LanguageComboHost}">
+                    <ComboBox Margin="1"
+                              Background="Transparent"
+                              BorderThickness="0"
+                              Foreground="{StaticResource Text0Brush}"
+                              FontSize="13"
+                              Padding="10,2"
+                              VerticalContentAlignment="Center"
+                              ItemsSource="{Binding LanguageOptions}"
+                              DisplayMemberPath="DisplayName"
+                              SelectedIndex="{Binding SelectedLanguageIndex, Mode=TwoWay}"
+                              shell:WindowChrome.IsHitTestVisibleInChrome="True" />
+                </Border>
+            </StackPanel>
+
+            <StackPanel Grid.Column="2"
+                        Orientation="Horizontal"
+                        VerticalAlignment="Center"
+                        Margin="0,0,10,0">
+                <Button Style="{StaticResource ChromeButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="Minimize_Click"
+                        Content="—" />
+                <Button Margin="8,0,0,0"
+                        Style="{StaticResource ChromeButton}"
+                        shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                        Click="Close_Click"
+                        Content="✕" />
+            </StackPanel>
+        </Grid>
+
+        <Grid x:Name="LoginContentGrid" Grid.Row="1" Margin="24,20,24,24">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="200" />
+                <ColumnDefinition Width="24" />
+                <ColumnDefinition Width="400" MinWidth="300" MaxWidth="520" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Left side branding -->
+            <Grid x:Name="BrandingPanel" Grid.Column="0" Margin="0,8,0,0">
+                <StackPanel VerticalAlignment="Center"
+                            HorizontalAlignment="Left">
+                    <Image Style="{StaticResource AppHeroLogoImage}" />
+                    <TextBlock Text="{DynamicResource Loc_BrandLabelFlow}"
+                               FontSize="22"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource AccentBrush}"
+                               HorizontalAlignment="Left"
+                               Margin="0,10,0,0" />
+
+                    <TextBlock Margin="0,16,0,0"
+                               TextWrapping="Wrap"
+                               FontSize="15"
+                               LineHeight="24"
+                               Foreground="{StaticResource Text1Brush}"
+                               Text="{DynamicResource Loc_Login_Tagline}" />
+                </StackPanel>
+            </Grid>
+
+            <!-- Login card -->
+            <Border x:Name="LoginCard" Grid.Column="2" Style="{StaticResource CardSurface}">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="24" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="14" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="18" />
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="16" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0">
+                        <TextBlock Text="{DynamicResource Loc_Login_Title}"
+                                   Style="{StaticResource PanelHeaderTitle}"
+                                   FontSize="22" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Style="{StaticResource PanelHeaderSubtitle}"
+                                   Text="{DynamicResource Loc_Login_Subtitle}" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="2">
+                        <TextBlock Text="{DynamicResource Loc_Login_Username}"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="50" />
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="4">
+                        <TextBlock Text="{DynamicResource Loc_Login_Password}"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <PasswordBox x:Name="PasswordBox"
+                                     Style="{StaticResource PasswordBoxModern}"
+                                     infra:PasswordBoxAssistant.BindPassword="True"
+                                     infra:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                     Height="50"
+                                     PreviewKeyDown="PasswordBox_PreviewKeyDown" />
+                        <CheckBox Margin="0,12,0,0"
+                                  Style="{StaticResource CheckBoxModern}"
+                                  Foreground="{StaticResource Text0Brush}"
+                                  Content="{DynamicResource Loc_Login_RememberMe}"
+                                  IsChecked="{Binding RememberMe}" />
+                    </StackPanel>
+
+                    <Grid Grid.Row="6">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                            <ColumnDefinition Width="12" />
+                            <ColumnDefinition Width="*" MinWidth="140" />
+                        </Grid.ColumnDefinitions>
+
+                        <Button Grid.Column="0"
+                                Style="{StaticResource ButtonGhost}"
+                                Height="52"
+                                Command="{Binding ClearSavedSessionCommand}"
+                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                Content="{DynamicResource Loc_Login_ClearSession}" />
+
+                        <Button Grid.Column="2"
+                                Style="{StaticResource ButtonPrimaryLarge}"
+                                Height="52"
+                                Command="{Binding LoginCommand}"
+                                IsEnabled="{Binding IsBusy, Converter={StaticResource InverseBooleanConverter}}"
+                                Content="{Binding LoginButtonCaption}" />
+                    </Grid>
+
+                    <ItemsControl Grid.Row="8" ItemsSource="{Binding Errors}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="#2A1420"
+                                        BorderBrush="#4A2030"
+                                        BorderThickness="1"
+                                        CornerRadius="{StaticResource R12}"
+                                        Padding="12"
+                                        Margin="0,0,0,8">
+                                    <TextBlock Text="{Binding}"
+                                               Foreground="{StaticResource Text0Brush}"
+                                               TextWrapping="Wrap" />
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                </Grid>
+            </Border>
+        </Grid>
+
+        <controls:ToastHost Grid.Row="1"
+                            HorizontalAlignment="Right"
+                            VerticalAlignment="Top"
+                            Margin="0,12,20,0"
+                            Panel.ZIndex="500" />
+    </Grid>
+</Window>

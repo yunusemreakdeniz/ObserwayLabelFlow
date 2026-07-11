@@ -1,0 +1,53 @@
+<UserControl x:Class="ObserwayLabelFlow.App.Controls.LoadingSpinner"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Name="Root"
+             Width="22"
+             Height="22"
+             SnapsToDevicePixels="True"
+             UseLayoutRounding="True"
+             IsHitTestVisible="False">
+    <Grid Width="22" Height="22" RenderTransformOrigin="0.5,0.5">
+        <Grid.RenderTransform>
+            <RotateTransform x:Name="SpinTransform" Angle="0" />
+        </Grid.RenderTransform>
+
+        <Ellipse Width="18"
+                 Height="18"
+                 Stroke="#33FFFFFF"
+                 StrokeThickness="2.5" />
+
+        <Path Stroke="{Binding SpinnerBrush, ElementName=Root}"
+              StrokeThickness="2.5"
+              StrokeStartLineCap="Round"
+              StrokeEndLineCap="Round"
+              Data="M 11,2 A 9,9 0 1 1 2,11" />
+
+        <Ellipse Width="4"
+                 Height="4"
+                 Fill="{Binding SpinnerBrush, ElementName=Root}"
+                 HorizontalAlignment="Center"
+                 VerticalAlignment="Top"
+                 Margin="0,1,0,0" />
+    </Grid>
+
+    <UserControl.Resources>
+        <Storyboard x:Key="SpinStoryboard" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="SpinTransform"
+                             Storyboard.TargetProperty="Angle"
+                             From="0"
+                             To="360"
+                             Duration="0:0:0.85">
+                <DoubleAnimation.EasingFunction>
+                    <CubicEase EasingMode="EaseInOut" />
+                </DoubleAnimation.EasingFunction>
+            </DoubleAnimation>
+        </Storyboard>
+    </UserControl.Resources>
+
+    <UserControl.Triggers>
+        <EventTrigger RoutedEvent="FrameworkElement.Loaded">
+            <BeginStoryboard Storyboard="{StaticResource SpinStoryboard}" />
+        </EventTrigger>
+    </UserControl.Triggers>
+</UserControl>
