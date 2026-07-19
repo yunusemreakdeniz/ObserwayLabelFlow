@@ -8,28 +8,34 @@ namespace ObserwayLabelFlow.App.Infrastructure;
 public static class HistoryGridCellValueResolver
 {
     public static string? Resolve(DataGridCell cell, PrintHistoryEntry entry)
+        => ResolveCore(cell, path => GetPrintPropertyValue(entry, path));
+
+    public static string? Resolve(DataGridCell cell, InboundHistoryEntry entry)
+        => ResolveCore(cell, path => GetInboundPropertyValue(entry, path));
+
+    private static string? ResolveCore(DataGridCell cell, Func<string, object?> getProperty)
     {
         var column = cell.Column;
         if (column is null)
             return null;
 
         if (column is DataGridBoundColumn boundColumn)
-            return ResolveBinding(entry, boundColumn.Binding);
+            return ResolveBinding(getProperty, boundColumn.Binding);
 
         return column.GetValue(HistoryGridColumnRole.RoleProperty) switch
         {
-            "Error" => NullIfWhiteSpace(entry.ErrorMessage),
+            "Error" => null,
             "Selection" or "Select" or "Print" or "Delete" => null,
             _ => null
         };
     }
 
-    private static string? ResolveBinding(PrintHistoryEntry entry, BindingBase? bindingBase)
+    private static string? ResolveBinding(Func<string, object?> getProperty, BindingBase? bindingBase)
     {
         if (bindingBase is not Binding binding || binding.Path.Path is not { Length: > 0 } path)
             return null;
 
-        var value = GetPropertyValue(entry, path);
+        var value = getProperty(path);
         if (value is null)
             return null;
 
@@ -39,7 +45,7 @@ public static class HistoryGridCellValueResolver
         return Convert.ToString(value, CultureInfo.CurrentCulture);
     }
 
-    private static object? GetPropertyValue(PrintHistoryEntry entry, string path)
+    private static object? GetPrintPropertyValue(PrintHistoryEntry entry, string path)
         => path switch
         {
             nameof(PrintHistoryEntry.CreatedAtUtc) => entry.CreatedAtUtc,
@@ -58,6 +64,15 @@ public static class HistoryGridCellValueResolver
             _ => null
         };
 
-    private static string? NullIfWhiteSpace(string? value)
-        => string.IsNullOrWhiteSpace(value) ? null : value;
+    private static object? GetInboundPropertyValue(InboundHistoryEntry entry, string path)
+        => path switch
+        {
+            nameof(InboundHistoryEntry.CreatedAtUtc) => entry.CreatedAtUtc,
+            nameof(InboundHistoryEntry.Reference) => entry.Reference,
+            nameof(InboundHistoryEntry.OrderNumber) => entry.OrderNumber,
+            nameof(InboundHistoryEntry.MarkedBy) => entry.MarkedBy,
+            nameof(InboundHistoryEntry.Success) => entry.Success,
+            nameof(InboundHistoryEntry.ErrorMessage) => entry.ErrorMessage,
+            _ => null
+        };
 }

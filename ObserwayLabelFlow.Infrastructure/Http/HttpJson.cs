@@ -1,5 +1,6 @@
 using System.Net.Http.Json;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace ObserwayLabelFlow.Infrastructure.Http;
 
@@ -7,7 +8,8 @@ internal static class HttpJson
 {
     public static readonly JsonSerializerOptions DefaultOptions = new(JsonSerializerDefaults.Web)
     {
-        PropertyNameCaseInsensitive = true
+        PropertyNameCaseInsensitive = true,
+        NumberHandling = JsonNumberHandling.AllowReadingFromString
     };
 
     public static Task<HttpResponseMessage> PostAsJsonAsync<T>(
@@ -20,4 +22,3 @@ internal static class HttpJson
     public static Task<T?> ReadFromJsonAsync<T>(this HttpContent content, CancellationToken ct)
         => content.ReadFromJsonAsync<T>(DefaultOptions, ct);
 }
-

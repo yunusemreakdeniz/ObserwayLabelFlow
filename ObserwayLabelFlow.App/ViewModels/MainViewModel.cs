@@ -9,6 +9,7 @@ using ObserwayLabelFlow.App.Services;
 using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Configuration;
 using ObserwayLabelFlow.Core.History;
+using ObserwayLabelFlow.Core.Inbound;
 using ObserwayLabelFlow.Core.Orders;
 using ObserwayLabelFlow.Core.Security;
 
@@ -18,8 +19,10 @@ public sealed partial class MainViewModel : ObservableObject
 {
     private readonly ITokenStore _tokenStore;
     private readonly IHistoryService _history;
+    private readonly IInboundHistoryService _inboundHistory;
     private readonly ILocalizationService _localization;
     private readonly IOrdersApiClient _ordersApiClient;
+    private readonly IInboundApiClient _inboundApiClient;
     private readonly IUserSettingsStore _userSettings;
     private readonly IApiBaseUrlProvider _apiBaseUrl;
     private readonly IAppDialogService _dialogs;
@@ -34,15 +37,29 @@ public sealed partial class MainViewModel : ObservableObject
     private PrintHistoryEntry? _lastHistoryEntry;
     private PrintHistoryEntry? _historyContextEntry;
     private string? _historyContextCellValue;
+    private string? _pendingOutboundReference;
 
     public PrintHistoryEntry? HistoryContextEntry => _historyContextEntry;
 
-    public MainViewModel(ITokenStore tokenStore, IHistoryService history, ILocalizationService localization, IOrdersApiClient ordersApiClient, IUserSettingsStore userSettings, IApiBaseUrlProvider apiBaseUrl, IAppDialogService dialogs, IHistoryExportService historyExport, ILogger<MainViewModel> logger)
+    public MainViewModel(
+        ITokenStore tokenStore,
+        IHistoryService history,
+        IInboundHistoryService inboundHistory,
+        ILocalizationService localization,
+        IOrdersApiClient ordersApiClient,
+        IInboundApiClient inboundApiClient,
+        IUserSettingsStore userSettings,
+        IApiBaseUrlProvider apiBaseUrl,
+        IAppDialogService dialogs,
+        IHistoryExportService historyExport,
+        ILogger<MainViewModel> logger)
     {
         _tokenStore = tokenStore;
         _history = history;
+        _inboundHistory = inboundHistory;
         _localization = localization;
         _ordersApiClient = ordersApiClient;
+        _inboundApiClient = inboundApiClient;
         _userSettings = userSettings;
         _apiBaseUrl = apiBaseUrl;
         _dialogs = dialogs;
@@ -50,6 +67,7 @@ public sealed partial class MainViewModel : ObservableObject
         _logger = logger;
         ProductSummary = _localization.Get("ProductSummaryHint");
         UserDisplayName = _localization.Get("UserGuest");
+        RefreshInboundHistoryDayLabel();
         _localization.CultureChanged += OnLocalizationCultureChanged;
     }
 
@@ -90,10 +108,28 @@ public sealed partial class MainViewModel : ObservableObject
             ProductSummary = _localization.Get("ProductSummaryAfterQuery", _lastQueriedTracking);
         else if (_productSummaryIsDefaultHint)
             ProductSummary = _localization.Get("ProductSummaryHint");
+        RefreshInboundHistoryDayLabel();
     }
 
     public event Action? LogoutRequested;
     public event Action? PrintRequested;
+
+    [ObservableProperty]
+    private AppWorkspaceMode currentMode = AppWorkspaceMode.ModeSelect;
+
+    public bool IsModeSelectVisible => CurrentMode == AppWorkspaceMode.ModeSelect;
+    public bool IsInboundVisible => CurrentMode == AppWorkspaceMode.Inbound;
+    public bool IsOutboundVisible => CurrentMode == AppWorkspaceMode.Outbound;
+    public bool IsWorkspaceChromeVisible => CurrentMode != AppWorkspaceMode.ModeSelect;
+
+    partial void OnCurrentModeChanged(AppWorkspaceMode value)
+    {
+        OnPropertyChanged(nameof(IsModeSelectVisible));
+        OnPropertyChanged(nameof(IsInboundVisible));
+        OnPropertyChanged(nameof(IsOutboundVisible));
+        OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+        IsUserMenuOpen = false;
+    }
 
     [ObservableProperty]
     private string userDisplayName = string.Empty;
@@ -120,6 +156,33 @@ public sealed partial class MainViewModel : ObservableObject
         QueryAndPrintCommand.NotifyCanExecuteChanged();
         ClearOperationCommand.NotifyCanExecuteChanged();
     }
+
+    private bool _suppressInboundMatchReset;
+
+    [ObservableProperty]
+    private string inboundQuery = string.Empty;
+
+    partial void OnInboundQueryChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            var cleaned = value.Trim().Trim('\r', '\n', '\t');
+            if (cleaned != value)
+                InboundQuery = cleaned;
+        }
+
+        if (!_suppressInboundMatchReset)
+            IsObsMatched = false;
+
+        LookupInboundCommand.NotifyCanExecuteChanged();
+        ClearInboundCommand.NotifyCanExecuteChanged();
+    }
+
+    [ObservableProperty]
+    private bool isObsMatched;
+
+    [ObservableProperty]
+    private string inboundStatusMessage = string.Empty;
 
     [ObservableProperty]
     private string productSummary = string.Empty;
@@ -181,6 +244,8 @@ public sealed partial class MainViewModel : ObservableObject
         QueryAndPrintCommand.NotifyCanExecuteChanged();
         PrintLabelCommand.NotifyCanExecuteChanged();
         ClearOperationCommand.NotifyCanExecuteChanged();
+        LookupInboundCommand.NotifyCanExecuteChanged();
+        ClearInboundCommand.NotifyCanExecuteChanged();
     }
 
     [ObservableProperty]
@@ -267,6 +332,7 @@ public sealed partial class MainViewModel : ObservableObject
 
         await LoadSettingsAsync(ct);
         await RefreshHistoryAsync(ct);
+        await RefreshInboundHistoryAsync(ct);
     }
 
     public async Task ReloadSettingsFromStoreAsync(CancellationToken ct = default)
@@ -604,19 +670,64 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task UpdateLastPrintResultAsync(bool success, string? errorMessage = null)
     {
-        if (_lastHistoryEntry is null)
+        if (_lastHistoryEntry is not null)
+        {
+            try
+            {
+                _lastHistoryEntry.Success = success;
+                _lastHistoryEntry.ErrorMessage = errorMessage;
+                await _history.UpdateAsync(_lastHistoryEntry, CancellationToken.None);
+                await RefreshHistoryAsync(CancellationToken.None);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Yazdırma sonucu güncellenirken hata oluştu.");
+            }
+        }
+
+        if (success)
+            await MarkOutboundReadyAfterPrintAsync();
+    }
+
+    private async Task MarkOutboundReadyAfterPrintAsync()
+    {
+        var reference = _pendingOutboundReference?.Trim();
+        if (string.IsNullOrWhiteSpace(reference))
             return;
 
-        try
+        while (true)
         {
-            _lastHistoryEntry.Success = success;
-            _lastHistoryEntry.ErrorMessage = errorMessage;
-            await _history.UpdateAsync(_lastHistoryEntry, CancellationToken.None);
-            await RefreshHistoryAsync(CancellationToken.None);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Yazdırma sonucu güncellenirken hata oluştu.");
+            try
+            {
+                var result = await _ordersApiClient.MarkOutboundReadyAsync(reference, CancellationToken.None);
+                if (result.IsSuccess)
+                {
+                    _dialogs.Show(
+                        AppDialogKind.Info,
+                        _localization.Get("ModeSelect_ProductOutboundTitle"),
+                        _localization.Get("Outbound_MarkedSuccess"));
+                    return;
+                }
+
+                var errorText = result.Errors.Count > 0
+                    ? string.Join("\n", result.Errors)
+                    : _localization.Get("Error_Connection");
+
+                var retry = _dialogs.Confirm(
+                    _localization.Get("Outbound_MarkFailedTitle"),
+                    _localization.Get("Outbound_MarkFailedRetry", errorText));
+                if (!retry)
+                    return;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Çıkışa hazır işaretleme başarısız. Reference={Reference}", reference);
+                var retry = _dialogs.Confirm(
+                    _localization.Get("Outbound_MarkFailedTitle"),
+                    _localization.Get("Outbound_MarkFailedRetry", _localization.Get("Error_Connection")));
+                if (!retry)
+                    return;
+            }
         }
     }
 
@@ -679,15 +790,23 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentOrderStatus = order.OrderStatus ?? string.Empty;
 
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(order.Label, _apiBaseUrl.GetBaseUrl());
+        _pendingOutboundReference = PdfSource is not null ? scannedTrackingNumber : null;
 
         ProductItems.Clear();
-        foreach (var product in order.Products)
-            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product));
+        var products = order.GetProducts();
+        var apiBase = _apiBaseUrl.GetBaseUrl();
+        foreach (var product in products)
+            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product, apiBase));
 
-        ProductItemCount = ProductItems.Count;
-
-        if (ProductItems.Count == 0)
+        ProductItemCount = products.Count;
+        if (products.Count == 0)
+        {
+            _logger.LogWarning(
+                "UI ürün listesi boş. Order={Order} Tracking={Tracking}",
+                order.ObserwayOrderNumber,
+                tracking);
             ProductItems.Add(new ProductPreviewItem { OfficialName = _localization.Get("ProductSummaryEmptyProducts") });
+        }
     }
 
     private void ClearCurrentOrderInfo()
@@ -702,6 +821,261 @@ public sealed partial class MainViewModel : ObservableObject
         LabelReady = false;
         HasActiveOrder = false;
         ProductItemCount = 0;
+        ProductItems.Clear();
+        _pendingOutboundReference = null;
+    }
+
+    [RelayCommand]
+    private void SelectProductInbound()
+    {
+        IsUserMenuOpen = false;
+        ClearInboundState();
+        InboundSelectedTabIndex = 0;
+        InboundHistoryDay = DateTime.Today;
+        CurrentMode = AppWorkspaceMode.Inbound;
+        _ = RefreshInboundHistoryAsync();
+    }
+
+    [RelayCommand]
+    private void SelectProductOutbound()
+    {
+        IsUserMenuOpen = false;
+        SelectedTabIndex = 0;
+        CurrentMode = AppWorkspaceMode.Outbound;
+    }
+
+    [RelayCommand]
+    private void ChangeMode()
+    {
+        IsUserMenuOpen = false;
+        CurrentMode = AppWorkspaceMode.ModeSelect;
+    }
+
+    [ObservableProperty]
+    private int inboundSelectedTabIndex;
+
+    public ObservableCollection<InboundHistoryEntry> InboundHistory { get; } = new();
+
+    [ObservableProperty]
+    private bool isInboundHistoryEmpty = true;
+
+    [ObservableProperty]
+    private DateTime inboundHistoryDay = DateTime.Today;
+
+    [ObservableProperty]
+    private string inboundHistoryDayLabel = string.Empty;
+
+    [ObservableProperty]
+    private string inboundHistorySearchText = string.Empty;
+
+    [ObservableProperty]
+    private int inboundHistoryRecordCount;
+
+    public bool CanGoInboundHistoryNextDay => InboundHistoryDay.Date < DateTime.Today;
+
+    partial void OnInboundHistoryDayChanged(DateTime value)
+    {
+        var normalized = value.Date;
+        if (normalized != value)
+        {
+            InboundHistoryDay = normalized;
+            return;
+        }
+
+        RefreshInboundHistoryDayLabel();
+        OnPropertyChanged(nameof(CanGoInboundHistoryNextDay));
+        InboundHistoryPreviousDayCommand.NotifyCanExecuteChanged();
+        InboundHistoryNextDayCommand.NotifyCanExecuteChanged();
+        _ = RefreshInboundHistoryAsync();
+    }
+
+    private void RefreshInboundHistoryDayLabel()
+    {
+        InboundHistoryDayLabel = InboundHistoryDay.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    [RelayCommand]
+    private void InboundHistoryPreviousDay()
+    {
+        InboundHistoryDay = InboundHistoryDay.Date.AddDays(-1);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanInboundHistoryNextDay))]
+    private void InboundHistoryNextDay()
+    {
+        var next = InboundHistoryDay.Date.AddDays(1);
+        if (next > DateTime.Today)
+            return;
+        InboundHistoryDay = next;
+    }
+
+    private bool CanInboundHistoryNextDay() => InboundHistoryDay.Date < DateTime.Today;
+
+    [RelayCommand]
+    private void InboundHistoryGoToday()
+    {
+        InboundHistoryDay = DateTime.Today;
+    }
+
+    [RelayCommand]
+    private async Task ApplyInboundHistorySearchAsync()
+        => await RefreshInboundHistoryAsync();
+
+    [RelayCommand]
+    private async Task ClearInboundHistorySearchAsync()
+    {
+        InboundHistorySearchText = string.Empty;
+        await RefreshInboundHistoryAsync();
+    }
+
+    private async Task RefreshInboundHistoryAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var rows = await _inboundHistory.GetForDayAsync(new InboundHistoryFilter
+            {
+                DayLocal = DateOnly.FromDateTime(InboundHistoryDay.Date),
+                SearchText = InboundHistorySearchText,
+                Take = 2000
+            }, ct);
+
+            InboundHistory.Clear();
+            foreach (var row in rows)
+                InboundHistory.Add(row);
+
+            InboundHistoryRecordCount = InboundHistory.Count;
+            IsInboundHistoryEmpty = InboundHistory.Count == 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ürün girişi geçmişi yüklenemedi.");
+            InboundHistory.Clear();
+            InboundHistoryRecordCount = 0;
+            IsInboundHistoryEmpty = true;
+        }
+    }
+
+    private async Task SaveInboundHistoryAsync(string reference, string? orderNumber, bool success, string? errorMessage)
+    {
+        try
+        {
+            await _inboundHistory.AddAsync(new InboundHistoryEntry
+            {
+                Reference = reference,
+                OrderNumber = orderNumber,
+                CreatedAtUtc = DateTimeOffset.UtcNow,
+                Success = success,
+                ErrorMessage = errorMessage,
+                MarkedBy = _welcomeDisplayName
+            });
+
+            if (InboundHistoryDay.Date != DateTime.Today)
+                InboundHistoryDay = DateTime.Today;
+            else
+                await RefreshInboundHistoryAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ürün girişi geçmiş kaydı yazılamadı.");
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanLookupInbound))]
+    private async Task LookupInboundAsync()
+    {
+        var query = InboundQuery?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query))
+            return;
+
+        IsBusy = true;
+        IsObsMatched = false;
+        InboundStatusMessage = string.Empty;
+        try
+        {
+            var result = await _inboundApiClient.MarkInboundReceivedAsync(query);
+            if (!result.IsSuccess || result.Value is null)
+            {
+                InboundStatusMessage = result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                await SaveInboundHistoryAsync(query, null, false, InboundStatusMessage);
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
+                return;
+            }
+
+            var orderNumber = result.Value.OrderNumber;
+            IsObsMatched = true;
+            InboundStatusMessage = _localization.Get("Inbound_MarkedSuccess", orderNumber);
+            await SaveInboundHistoryAsync(query, orderNumber, true, null);
+            _dialogs.Show(
+                AppDialogKind.Info,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                InboundStatusMessage);
+
+            _suppressInboundMatchReset = true;
+            try
+            {
+                InboundQuery = string.Empty;
+            }
+            finally
+            {
+                _suppressInboundMatchReset = false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ürün girişi işaretleme başarısız.");
+            InboundStatusMessage = _localization.Get("Error_Connection");
+            await SaveInboundHistoryAsync(query, null, false, InboundStatusMessage);
+            _dialogs.Show(
+                AppDialogKind.Error,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                InboundStatusMessage);
+        }
+        finally
+        {
+            IsBusy = false;
+            ClearInboundCommand.NotifyCanExecuteChanged();
+            LookupInboundCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    private bool CanLookupInbound()
+        => !IsBusy && !string.IsNullOrWhiteSpace(InboundQuery);
+
+    [RelayCommand(CanExecute = nameof(CanClearInbound))]
+    private void ClearInbound() => ClearInboundState();
+
+    private bool CanClearInbound()
+        => !IsBusy
+           && (!string.IsNullOrWhiteSpace(InboundQuery)
+               || IsObsMatched
+               || !string.IsNullOrWhiteSpace(InboundStatusMessage));
+
+    private void ClearInboundState()
+    {
+        InboundQuery = string.Empty;
+        IsObsMatched = false;
+        InboundStatusMessage = string.Empty;
+        ClearInboundCommand.NotifyCanExecuteChanged();
+        LookupInboundCommand.NotifyCanExecuteChanged();
+    }
+
+    public void ClearInboundTrackingForNextScan()
+    {
+        _suppressInboundMatchReset = true;
+        try
+        {
+            InboundQuery = string.Empty;
+        }
+        finally
+        {
+            _suppressInboundMatchReset = false;
+        }
+
+        ClearInboundCommand.NotifyCanExecuteChanged();
+        LookupInboundCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand]
@@ -725,6 +1099,10 @@ public sealed partial class MainViewModel : ObservableObject
         if (entry?.PdfUrl is null)
             return;
 
+        _lastHistoryEntry = entry;
+        _pendingOutboundReference = string.IsNullOrWhiteSpace(entry.TrackingNumber)
+            ? entry.OrderNumber
+            : entry.TrackingNumber;
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(entry.PdfUrl, _apiBaseUrl.GetBaseUrl());
         PrintRequested?.Invoke();
     }
@@ -759,6 +1137,12 @@ public sealed partial class MainViewModel : ObservableObject
         _historyContextEntry = entry;
         _historyContextCellValue = cellValue;
         NotifyHistoryContextCommands();
+    }
+
+    public void PrepareInboundHistoryCopy(string? cellValue)
+    {
+        _historyContextCellValue = cellValue;
+        CopyHistoryCellCommand.NotifyCanExecuteChanged();
     }
 
     [RelayCommand(CanExecute = nameof(CanCopyHistoryCell))]
@@ -925,6 +1309,40 @@ public sealed partial class MainViewModel : ObservableObject
         catch (Exception ex)
         {
             _logger.LogError(ex, "Geçmiş Excel dışa aktarımı başarısız.");
+            _dialogs.Show(AppDialogKind.Error, _localization.Get("HistoryExportTitle"), _localization.Get("HistoryExportFailed"));
+        }
+    }
+
+    [RelayCommand]
+    private void ExportInboundHistoryToExcel()
+    {
+        try
+        {
+            var entries = InboundHistory.ToList();
+            if (entries.Count == 0)
+            {
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    _localization.Get("HistoryExportEmpty"));
+                return;
+            }
+
+            var dayStamp = InboundHistoryDay.ToString("yyyyMMdd");
+            var suggestedName = $"UrunGiris_Gecmis_{dayStamp}_{DateTime.Now:HHmm}.xlsx";
+            var path = PromptSaveExcelFile?.Invoke(suggestedName);
+            if (string.IsNullOrWhiteSpace(path))
+                return;
+
+            _historyExport.ExportInboundToExcel(entries, path, _localization);
+            _dialogs.Show(
+                AppDialogKind.Info,
+                _localization.Get("HistoryExportTitle"),
+                _localization.Get("HistoryExportSuccessAll", entries.Count));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ürün girişi geçmişi Excel dışa aktarımı başarısız.");
             _dialogs.Show(AppDialogKind.Error, _localization.Get("HistoryExportTitle"), _localization.Get("HistoryExportFailed"));
         }
     }

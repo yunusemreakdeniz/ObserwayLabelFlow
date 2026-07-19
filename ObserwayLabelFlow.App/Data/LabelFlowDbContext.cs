@@ -11,6 +11,8 @@ public sealed class LabelFlowDbContext : DbContext
 
     public DbSet<PrintHistoryEntry> PrintHistory => Set<PrintHistoryEntry>();
 
+    public DbSet<InboundHistoryEntry> InboundHistory => Set<InboundHistoryEntry>();
+
     public DbSet<UserSettingsRecord> UserSettings => Set<UserSettingsRecord>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -41,5 +43,15 @@ public sealed class LabelFlowDbContext : DbContext
         e.HasIndex(x => x.CreatedAtUtc);
         e.HasIndex(x => x.Success);
         e.Ignore(x => x.IsSelected);
+
+        var inbound = modelBuilder.Entity<InboundHistoryEntry>();
+        inbound.ToTable("InboundHistory");
+        inbound.HasKey(x => x.Id);
+        inbound.Property(x => x.Reference).IsRequired().HasMaxLength(200);
+        inbound.Property(x => x.OrderNumber).HasMaxLength(100);
+        inbound.Property(x => x.ErrorMessage).HasMaxLength(2000);
+        inbound.Property(x => x.MarkedBy).HasMaxLength(200);
+        inbound.HasIndex(x => x.CreatedAtUtc);
+        inbound.HasIndex(x => x.Success);
     }
 }

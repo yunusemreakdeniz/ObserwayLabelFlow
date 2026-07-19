@@ -9,7 +9,7 @@
     <ApplicationIcon>Assets\obserway.ico</ApplicationIcon>
     <AssemblyName>ObserwayLabelFlow</AssemblyName>
     <RootNamespace>ObserwayLabelFlow.App</RootNamespace>
-    <Product>Obserway LabelFlow</Product>
+    <Product>Obserway Depo Yönetimi</Product>
     <Company>Obserway</Company>
     <Copyright>Copyright © Obserway</Copyright>
     <!-- Semantic version: major.minor.fix — bump in publish/installer scripts too -->

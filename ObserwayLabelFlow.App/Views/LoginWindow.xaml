@@ -185,12 +185,44 @@
                         <StackPanel Grid.Row="4">
                             <TextBlock infra:FieldLabelAssist.LocKey="Login_Password"
                                        Style="{StaticResource FilterFieldLabel}" />
-                            <PasswordBox x:Name="PasswordBox"
-                                         Style="{StaticResource PasswordBoxModern}"
-                                         infra:PasswordBoxAssistant.BindPassword="True"
-                                         infra:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                            <Grid>
+                                <PasswordBox x:Name="PasswordBox"
+                                             Style="{StaticResource PasswordBoxModern}"
+                                             Padding="14,12,44,12"
+                                             infra:PasswordBoxAssistant.BindPassword="True"
+                                             infra:PasswordBoxAssistant.BoundPassword="{Binding Password, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                                             Height="50"
+                                             Visibility="{Binding IsPasswordVisible, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
+                                             PreviewKeyDown="PasswordBox_PreviewKeyDown" />
+                                <TextBox x:Name="PasswordRevealBox"
+                                         Style="{StaticResource TextBoxModern}"
+                                         Padding="14,12,44,12"
+                                         Text="{Binding Password, UpdateSourceTrigger=PropertyChanged}"
                                          Height="50"
+                                         Visibility="{Binding IsPasswordVisible, Converter={StaticResource BooleanToVisibilityConverter}}"
                                          PreviewKeyDown="PasswordBox_PreviewKeyDown" />
+                                <Button HorizontalAlignment="Right"
+                                        VerticalAlignment="Center"
+                                        Margin="0,0,6,0"
+                                        Width="36"
+                                        Height="36"
+                                        MinWidth="36"
+                                        Padding="0"
+                                        FontSize="14"
+                                        Command="{Binding TogglePasswordVisibilityCommand}"
+                                        ToolTip="{Binding PasswordVisibilityToolTip}">
+                                    <Button.Style>
+                                        <Style TargetType="{x:Type Button}" BasedOn="{StaticResource ChromeIconButton}">
+                                            <Setter Property="Content" Value="&#xE7B3;" />
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsPasswordVisible}" Value="True">
+                                                    <Setter Property="Content" Value="&#xED1A;" />
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </Button.Style>
+                                </Button>
+                            </Grid>
                             <CheckBox x:Name="RememberMeCheckBox"
                                       Margin="0,12,0,0"
                                       Style="{StaticResource CheckBoxModern}"

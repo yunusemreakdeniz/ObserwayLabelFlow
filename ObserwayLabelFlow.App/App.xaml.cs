@@ -16,9 +16,11 @@ using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Auth;
 using ObserwayLabelFlow.Core.Configuration;
 using ObserwayLabelFlow.Core.History;
+using ObserwayLabelFlow.Core.Inbound;
 using ObserwayLabelFlow.Core.Orders;
 using ObserwayLabelFlow.Core.Security;
 using ObserwayLabelFlow.Infrastructure.Auth;
+using ObserwayLabelFlow.Infrastructure.Inbound;
 using ObserwayLabelFlow.Infrastructure.Orders;
 using ObserwayLabelFlow.Infrastructure.Security;
 
@@ -104,6 +106,22 @@ public partial class App : Application
                         return handler;
                     });
 
+                    services.AddHttpClient<IInboundApiClient, InboundApiClient>(http =>
+                    {
+                        http.BaseAddress = new Uri(baseUrl);
+                        http.Timeout = TimeSpan.FromSeconds(30);
+                    })
+                    .ConfigurePrimaryHttpMessageHandler(() =>
+                    {
+                        var handler = new HttpClientHandler();
+                        if (allowInvalidCerts)
+                        {
+                            handler.ServerCertificateCustomValidationCallback =
+                                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+                        }
+                        return handler;
+                    });
+
                     services.AddHttpClient<ILabelPdfLoader, LabelPdfLoader>(http =>
                     {
                         http.Timeout = TimeSpan.FromSeconds(60);
@@ -139,6 +157,7 @@ public partial class App : Application
                         o.UseSqlite($"Data Source={dbPath};Cache=Shared"));
 
                     services.AddSingleton<IHistoryService, HistoryService>();
+                    services.AddSingleton<IInboundHistoryService, InboundHistoryService>();
                     services.AddSingleton<ISessionService, SessionService>();
                 })
                 .Build();
@@ -182,7 +201,7 @@ public partial class App : Application
                 logger.LogError(ex, "LoginWindow oluşturulamadı.");
                 MessageBox.Show(
                     $"Pencere oluşturulamadı.\n{ex.Message}",
-                    "Obserway Label Flow",
+                    "Obserway Depo Yönetimi",
                     MessageBoxButton.OK,
                     MessageBoxImage.Error);
                 Shutdown(-1);
@@ -206,7 +225,7 @@ public partial class App : Application
 
             MessageBox.Show(
                 $"Uygulama başlatılamadı.\n{ex.Message}",
-                "Obserway Label Flow",
+                "Obserway Depo Yönetimi",
                 MessageBoxButton.OK,
                 MessageBoxImage.Error);
             Shutdown(-1);
@@ -266,7 +285,7 @@ public partial class App : Application
                 MessageBox.Show(
                     loginWindow,
                     ex.Message,
-                    "Obserway Label Flow",
+                    "Obserway Depo Yönetimi",
                     MessageBoxButton.OK,
                     MessageBoxImage.Warning);
                 loginWindow.Activate();

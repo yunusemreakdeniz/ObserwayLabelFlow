@@ -6,6 +6,7 @@
         xmlns:shell="clr-namespace:System.Windows.Shell;assembly=PresentationFramework"
         xmlns:controls="clr-namespace:ObserwayLabelFlow.App.Controls"
         xmlns:infra="clr-namespace:ObserwayLabelFlow.App.Infrastructure"
+        xmlns:views="clr-namespace:ObserwayLabelFlow.App.Views"
         mc:Ignorable="d"
         Title="{DynamicResource Loc_WindowTitle}"
         Height="760"
@@ -46,6 +47,7 @@
         <Grid Grid.Row="0" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -93,6 +95,17 @@
             </StackPanel>
 
             <Button Grid.Column="2"
+                    Style="{StaticResource ButtonGhost}"
+                    Height="32"
+                    Padding="12,0"
+                    Margin="0,0,8,0"
+                    FontSize="12"
+                    shell:WindowChrome.IsHitTestVisibleInChrome="True"
+                    Command="{Binding ChangeModeCommand}"
+                    Content="{DynamicResource Loc_ChangeMode}"
+                    Visibility="{Binding IsWorkspaceChromeVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <Button Grid.Column="3"
                     x:Name="UserMenuButton"
                     Style="{StaticResource ChromeIconButton}"
                     Margin="0,0,8,0"
@@ -124,13 +137,21 @@
                                 HorizontalAlignment="Stretch"
                                 Height="40"
                                 FontSize="14"
+                                Command="{Binding ChangeModeCommand}"
+                                Content="{DynamicResource Loc_ChangeMode}"
+                                Visibility="{Binding IsWorkspaceChromeVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                        <Button Margin="0,12,0,0"
+                                Style="{StaticResource ButtonGhost}"
+                                HorizontalAlignment="Stretch"
+                                Height="40"
+                                FontSize="14"
                                 Command="{Binding LogoutCommand}"
                                 Content="{DynamicResource Loc_Logout}" />
                     </StackPanel>
                 </Border>
             </Popup>
 
-            <Button Grid.Column="3"
+            <Button Grid.Column="4"
                     Style="{StaticResource ChromeIconButton}"
                     Margin="0,0,8,0"
                     shell:WindowChrome.IsHitTestVisibleInChrome="True"
@@ -138,7 +159,7 @@
                     ToolTip="{DynamicResource Loc_SettingsTitle}"
                     Content="&#xE713;" />
 
-            <StackPanel Grid.Column="4"
+            <StackPanel Grid.Column="5"
                         Orientation="Horizontal"
                         VerticalAlignment="Center"
                         Margin="0,0,14,0">
@@ -154,7 +175,14 @@
             </StackPanel>
         </Grid>
 
-        <Grid Grid.Row="1" Margin="12,2,12,2">
+        <Grid Grid.Row="1">
+            <views:ModeSelectView Visibility="{Binding IsModeSelectVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <views:InboundView x:Name="InboundHost"
+                               Visibility="{Binding IsInboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+            <Grid Margin="12,2,12,2"
+                  Visibility="{Binding IsOutboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="4" />
@@ -250,10 +278,11 @@
             </Border>
 
             <TabControl Grid.Row="2"
+                        VerticalAlignment="Stretch"
                         SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                         Style="{StaticResource TabControlFullWidth}">
                 <TabItem Header="{DynamicResource Loc_TabOperation}" Style="{StaticResource TabItemFullWidth}">
-                    <Grid>
+                    <Grid VerticalAlignment="Stretch">
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" MinWidth="220" />
                             <ColumnDefinition Width="Auto" />
@@ -365,7 +394,7 @@
                                         Style="{StaticResource ToolbarBar}"
                                         Margin="0,6,0,0"
                                         Padding="8,6"
-                                        Visibility="{Binding LabelReady, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                        Visibility="{Binding HasActiveOrder, Converter={StaticResource BooleanToVisibilityConverter}}">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*" />
@@ -448,7 +477,8 @@
                         <Border Grid.Column="2"
                                 Style="{StaticResource CardSurface}"
                                 Padding="10"
-                                MinWidth="0">
+                                MinWidth="0"
+                                VerticalAlignment="Stretch">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
@@ -988,11 +1018,12 @@
                 </StackPanel>
             </Border>
         </Grid>
+        </Grid>
 
         <controls:ToastHost Grid.Row="1"
                             HorizontalAlignment="Right"
                             VerticalAlignment="Top"
-                            Margin="0,60,20,0"
+                            Margin="0,12,20,0"
                             Panel.ZIndex="900" />
 
         <Border Grid.Row="2" Style="{StaticResource AppStatusFooter}">

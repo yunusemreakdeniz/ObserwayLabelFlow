@@ -7,6 +7,8 @@ namespace ObserwayLabelFlow.App.Services;
 public interface IHistoryExportService
 {
     void ExportToExcel(IReadOnlyList<PrintHistoryEntry> entries, string filePath, ILocalizationService localization);
+
+    void ExportInboundToExcel(IReadOnlyList<InboundHistoryEntry> entries, string filePath, ILocalizationService localization);
 }
 
 public sealed class HistoryExcelExportService : IHistoryExportService
@@ -17,6 +19,49 @@ public sealed class HistoryExcelExportService : IHistoryExportService
         WriteHistorySheet(workbook, entries, localization);
         WriteProductsSheet(workbook, entries, localization);
         workbook.SaveAs(filePath);
+    }
+
+    public void ExportInboundToExcel(IReadOnlyList<InboundHistoryEntry> entries, string filePath, ILocalizationService localization)
+    {
+        using var workbook = new XLWorkbook();
+        WriteInboundHistorySheet(workbook, entries, localization);
+        workbook.SaveAs(filePath);
+    }
+
+    private static void WriteInboundHistorySheet(XLWorkbook workbook, IReadOnlyList<InboundHistoryEntry> entries, ILocalizationService localization)
+    {
+        var sheet = workbook.Worksheets.Add(localization.Get("ModeSelect_ProductInboundTitle"));
+
+        var headers = new[]
+        {
+            localization.Get("HistoryDateUtc"),
+            localization.Get("InboundHistory_Reference"),
+            localization.Get("InboundHistory_OrderNumber"),
+            localization.Get("InboundHistory_MarkedBy"),
+            localization.Get("HistoryResult"),
+            localization.Get("HistoryErrorMessage"),
+        };
+
+        ApplyHeaderRow(sheet, headers);
+
+        for (var i = 0; i < entries.Count; i++)
+        {
+            var row = i + 2;
+            var entry = entries[i];
+
+            sheet.Cell(row, 1).Value = entry.CreatedAtUtc.ToLocalTime().DateTime;
+            sheet.Cell(row, 1).Style.DateFormat.Format = "yyyy-mm-dd hh:mm:ss";
+            sheet.Cell(row, 2).Value = entry.Reference ?? string.Empty;
+            sheet.Cell(row, 3).Value = entry.OrderNumber ?? string.Empty;
+            sheet.Cell(row, 4).Value = entry.MarkedBy ?? string.Empty;
+            sheet.Cell(row, 5).Value = entry.Success
+                ? localization.Get("HistorySuccess")
+                : localization.Get("HistoryFailed");
+            sheet.Cell(row, 6).Value = entry.ErrorMessage ?? string.Empty;
+        }
+
+        sheet.Columns().AdjustToContents(1, headers.Length);
+        sheet.SheetView.FreezeRows(1);
     }
 
     private static void WriteHistorySheet(XLWorkbook workbook, IReadOnlyList<PrintHistoryEntry> entries, ILocalizationService localization)

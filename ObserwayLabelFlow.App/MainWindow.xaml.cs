@@ -36,13 +36,13 @@ public partial class MainWindow : Window
     private readonly IToastService _toasts;
     private readonly ILogger<MainWindow> _logger;
     private DispatcherTimer? _sessionTimer;
-    private DispatcherTimer? _barcodeTimer;
     private DispatcherTimer? _statusTimer;
     private bool _sessionTickRunning;
     private bool _printPending;
     private bool _isPrinting;
     private DateTimeOffset _lastBarcodeInputUtc = DateTimeOffset.MinValue;
     private string? _lastProcessedTracking;
+    private string? _lastProcessedInboundTracking;
     private int _labelPreviewGeneration;
     private int _statusTickCount;
     private string? _localLabelFilePath;
@@ -63,6 +63,7 @@ public partial class MainWindow : Window
         {
             vm.LogoutRequested -= OnLogoutRequested;
             vm.PrintRequested -= OnPrintRequested;
+            DetachInboundHost();
         };
         _sessionService = sessionService;
         _configuration = configuration;
@@ -77,7 +78,6 @@ public partial class MainWindow : Window
         Closed += (_, _) =>
         {
             _sessionTimer?.Stop();
-            _barcodeTimer?.Stop();
             _statusTimer?.Stop();
         };
     }
@@ -336,6 +336,7 @@ public partial class MainWindow : Window
                 await vm.InitializeAsync();
                 vm.PropertyChanged += ViewModelOnPropertyChanged;
                 vm.LabelPreviewChanged += OnLabelPreviewChanged;
+                AttachInboundHost();
             }
         }
         catch (Exception ex)
@@ -345,17 +346,13 @@ public partial class MainWindow : Window
 
         Activated += Window_Activated;
 
-        FocusTrackingBoxIfOperationTab();
+        FocusActiveInput();
 
         var sec = _configuration.GetValue("Session:RefreshCheckSeconds", 60);
         sec = Math.Clamp(sec, 15, 3600);
         _sessionTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(sec) };
         _sessionTimer.Tick += SessionTimerOnTick;
         _sessionTimer.Start();
-
-        _barcodeTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(100) };
-        _barcodeTimer.Tick += BarcodeTimerOnTick;
-        _barcodeTimer.Start();
 
         _statusTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _statusTimer.Tick += StatusTimerOnTick;
@@ -412,8 +409,52 @@ public partial class MainWindow : Window
         return Task.CompletedTask;
     }
 
+    private void AttachInboundHost()
+    {
+        if (InboundHost is null)
+            return;
+
+        InboundHost.InboundQueryInputChanged += OnInboundQueryInputChanged;
+        InboundHost.InboundQuerySubmitRequested += OnInboundQuerySubmitRequested;
+    }
+
+    private void DetachInboundHost()
+    {
+        if (InboundHost is null)
+            return;
+
+        InboundHost.InboundQueryInputChanged -= OnInboundQueryInputChanged;
+        InboundHost.InboundQuerySubmitRequested -= OnInboundQuerySubmitRequested;
+    }
+
+    private void OnInboundQueryInputChanged()
+    {
+        _lastBarcodeInputUtc = DateTimeOffset.UtcNow;
+        if (DataContext is MainViewModel vm)
+        {
+            vm.RefreshScannerStatus(_lastBarcodeInputUtc);
+            if (string.IsNullOrWhiteSpace(vm.InboundQuery))
+                _lastProcessedInboundTracking = null;
+        }
+    }
+
+    private void OnInboundQuerySubmitRequested()
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        _lastProcessedInboundTracking = vm.InboundQuery?.Trim();
+        _ = ExecuteInboundLookupAsync(vm);
+    }
+
     private void Window_Activated(object? sender, EventArgs e)
     {
+        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
+        {
+            ScheduleInboundFocus();
+            return;
+        }
+
         if (ShouldRefocusTrackingFromCurrentFocus())
             ScheduleTrackingFocus();
     }
@@ -423,6 +464,15 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm)
             return;
 
+        if (e.PropertyName == nameof(MainViewModel.CurrentMode))
+        {
+            if (vm.CurrentMode == AppWorkspaceMode.Inbound)
+                ScheduleInboundFocus();
+            else if (vm.CurrentMode == AppWorkspaceMode.Outbound)
+                ScheduleTrackingFocus();
+            return;
+        }
+
         if (e.PropertyName == nameof(MainViewModel.SelectedTabIndex) && vm.SelectedTabIndex == 0)
             ScheduleTrackingFocus();
 
@@ -430,11 +480,30 @@ public partial class MainWindow : Window
             ScheduleTrackingFocus();
 
         if (e.PropertyName == nameof(MainViewModel.IsBusy) && !vm.IsBusy)
-            ScheduleTrackingFocus();
+            FocusActiveInput();
     }
 
     private void ScheduleTrackingFocus()
         => Dispatcher.BeginInvoke(FocusTrackingBoxIfOperationTab, DispatcherPriority.ApplicationIdle);
+
+    private void ScheduleInboundFocus()
+        => Dispatcher.BeginInvoke(FocusInboundTrackingBox, DispatcherPriority.ApplicationIdle);
+
+    private void FocusActiveInput()
+    {
+        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
+            ScheduleInboundFocus();
+        else
+            ScheduleTrackingFocus();
+    }
+
+    private void FocusInboundTrackingBox()
+    {
+        if (DataContext is not MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
+            return;
+
+        InboundHost?.FocusQueryBox();
+    }
 
     private bool ShouldRefocusTrackingFromCurrentFocus()
     {
@@ -489,6 +558,9 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm)
             return false;
 
+        if (vm.CurrentMode != AppWorkspaceMode.Outbound)
+            return false;
+
         if (vm.SelectedTabIndex != 0)
             return false;
 
@@ -528,31 +600,22 @@ public partial class MainWindow : Window
         _ = ExecuteBarcodeActionAsync(vm);
     }
 
-    private async void BarcodeTimerOnTick(object? sender, EventArgs e)
+    private async Task ExecuteInboundLookupAsync(MainViewModel vm)
     {
-        if (DataContext is not MainViewModel vm)
-            return;
-
-        var tn = vm.TrackingNumber?.Trim();
-
-        if (string.IsNullOrWhiteSpace(tn))
+        try
         {
-            _lastProcessedTracking = null;
-            return;
+            await vm.LookupInboundCommand.ExecuteAsync(null);
         }
-
-        if (tn == _lastProcessedTracking)
-            return;
-
-        var timeout = vm.BarcodeTimeoutMs > 0 ? vm.BarcodeTimeoutMs : 250;
-        if ((DateTimeOffset.UtcNow - _lastBarcodeInputUtc).TotalMilliseconds < timeout)
-            return;
-
-        if (tn.Length < 3)
-            return;
-
-        _lastProcessedTracking = tn;
-        await ExecuteBarcodeActionAsync(vm);
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Ürün girişi barkod/elle sorgu hatası. Query={Query}", vm.InboundQuery);
+            _dialogs.Show(AppDialogKind.Error, _localization.Get("ModeSelect_ProductInboundTitle"), _localization.Get("Error_Connection"), this);
+        }
+        finally
+        {
+            vm.ClearInboundTrackingForNextScan();
+            ScheduleInboundFocus();
+        }
     }
 
     private async Task ExecuteBarcodeActionAsync(MainViewModel vm)
@@ -636,13 +699,12 @@ public partial class MainWindow : Window
         {
             _sessionTimer?.Stop();
             _sessionTimer = null;
-            _barcodeTimer?.Stop();
-            _barcodeTimer = null;
             _statusTimer?.Stop();
             _statusTimer = null;
             if (Application.Current is App app)
             {
                 var login = app.Services.GetRequiredService<LoginWindow>();
+                Application.Current.MainWindow = login;
                 login.Show();
             }
             Close();

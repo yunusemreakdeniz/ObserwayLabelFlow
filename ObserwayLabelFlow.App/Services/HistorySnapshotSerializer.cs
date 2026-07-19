@@ -53,11 +53,11 @@ internal static class HistorySnapshotSerializer
                     StoreName = order.Customer.StoreName,
                     Contact = order.Customer.Contact,
                 },
-            Products = order.Products.Select(p => new HistoryProductSnapshot
+            Products = order.GetProducts().Select(p => new HistoryProductSnapshot
             {
                 Asin = p.Asin,
                 Sku = p.Sku,
-                Title = p.Title,
+                Title = p.ResolveTitle(),
                 Quantity = p.Quantity,
                 Weight = p.Weight,
                 Length = p.Length,

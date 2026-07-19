@@ -126,6 +126,8 @@ public partial class LoginWindow : Window
             UsernameBox.Height = fieldHeight;
         if (PasswordBox is not null)
             PasswordBox.Height = fieldHeight;
+        if (PasswordRevealBox is not null)
+            PasswordRevealBox.Height = fieldHeight;
         if (ClearSessionButton is not null)
             ClearSessionButton.Height = buttonHeight;
         if (LoginButton is not null)
@@ -187,6 +189,7 @@ public partial class LoginWindow : Window
         Dispatcher.Invoke(() =>
         {
             var main = ((App)Application.Current).Services.GetRequiredService<MainWindow>();
+            Application.Current.MainWindow = main;
             main.Show();
             Close();
         });

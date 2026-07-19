@@ -71,6 +71,7 @@ public sealed partial class LoginViewModel : ObservableObject
         SelectedLanguageIndex = idx;
         _suppressCultureSelection = false;
         RefreshLoginButtonCaption();
+        OnPropertyChanged(nameof(PasswordVisibilityToolTip));
     }
 
     [ObservableProperty]
@@ -94,6 +95,9 @@ public sealed partial class LoginViewModel : ObservableObject
 
     [ObservableProperty]
     private string password = string.Empty;
+
+    [ObservableProperty]
+    private bool isPasswordVisible;
 
     [ObservableProperty]
     private bool rememberMe = true;
@@ -150,6 +154,16 @@ public sealed partial class LoginViewModel : ObservableObject
 
         return Errors.Count == 0;
     }
+
+    [RelayCommand]
+    private void TogglePasswordVisibility() => IsPasswordVisible = !IsPasswordVisible;
+
+    public string PasswordVisibilityToolTip => IsPasswordVisible
+        ? _localization.Get("Login_HidePassword")
+        : _localization.Get("Login_ShowPassword");
+
+    partial void OnIsPasswordVisibleChanged(bool value) =>
+        OnPropertyChanged(nameof(PasswordVisibilityToolTip));
 
     [RelayCommand]
     private async Task LoginAsync()
@@ -210,6 +224,7 @@ public sealed partial class LoginViewModel : ObservableObject
 
         Username = string.Empty;
         Password = string.Empty;
+        IsPasswordVisible = false;
         RememberMe = false;
         Errors.Clear();
         _toasts.Show(ToastKind.Success, _localization.Get("Login_Title"), _localization.Get("SessionCleared"));
