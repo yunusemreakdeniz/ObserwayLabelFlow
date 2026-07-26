@@ -9,9 +9,8 @@ using ObserwayLabelFlow.App.Services;
 using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Configuration;
 using ObserwayLabelFlow.Core.History;
-using ObserwayLabelFlow.Core.Inbound;
-using ObserwayLabelFlow.Core.Orders;
 using ObserwayLabelFlow.Core.Security;
+using ObserwayLabelFlow.Core.Warehouse;
 
 namespace ObserwayLabelFlow.App.ViewModels;
 
@@ -21,8 +20,8 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IHistoryService _history;
     private readonly IInboundHistoryService _inboundHistory;
     private readonly ILocalizationService _localization;
-    private readonly IOrdersApiClient _ordersApiClient;
-    private readonly IInboundApiClient _inboundApiClient;
+    private readonly IWarehouseApiClient _warehouseApiClient;
+    private readonly IWarehouseIdsProvider _warehouseIds;
     private readonly IUserSettingsStore _userSettings;
     private readonly IApiBaseUrlProvider _apiBaseUrl;
     private readonly IAppDialogService _dialogs;
@@ -37,7 +36,7 @@ public sealed partial class MainViewModel : ObservableObject
     private PrintHistoryEntry? _lastHistoryEntry;
     private PrintHistoryEntry? _historyContextEntry;
     private string? _historyContextCellValue;
-    private string? _pendingOutboundReference;
+    private long? _pendingOutboundOrderId;
 
     public PrintHistoryEntry? HistoryContextEntry => _historyContextEntry;
 
@@ -46,8 +45,8 @@ public sealed partial class MainViewModel : ObservableObject
         IHistoryService history,
         IInboundHistoryService inboundHistory,
         ILocalizationService localization,
-        IOrdersApiClient ordersApiClient,
-        IInboundApiClient inboundApiClient,
+        IWarehouseApiClient warehouseApiClient,
+        IWarehouseIdsProvider warehouseIds,
         IUserSettingsStore userSettings,
         IApiBaseUrlProvider apiBaseUrl,
         IAppDialogService dialogs,
@@ -58,8 +57,8 @@ public sealed partial class MainViewModel : ObservableObject
         _history = history;
         _inboundHistory = inboundHistory;
         _localization = localization;
-        _ordersApiClient = ordersApiClient;
-        _inboundApiClient = inboundApiClient;
+        _warehouseApiClient = warehouseApiClient;
+        _warehouseIds = warehouseIds;
         _userSettings = userSettings;
         _apiBaseUrl = apiBaseUrl;
         _dialogs = dialogs;
@@ -68,6 +67,7 @@ public sealed partial class MainViewModel : ObservableObject
         ProductSummary = _localization.Get("ProductSummaryHint");
         UserDisplayName = _localization.Get("UserGuest");
         RefreshInboundHistoryDayLabel();
+        RefreshHistoryDayLabel();
         _localization.CultureChanged += OnLocalizationCultureChanged;
     }
 
@@ -109,6 +109,7 @@ public sealed partial class MainViewModel : ObservableObject
         else if (_productSummaryIsDefaultHint)
             ProductSummary = _localization.Get("ProductSummaryHint");
         RefreshInboundHistoryDayLabel();
+        RefreshHistoryDayLabel();
     }
 
     public event Action? LogoutRequested;
@@ -119,6 +120,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public bool IsModeSelectVisible => CurrentMode == AppWorkspaceMode.ModeSelect;
     public bool IsInboundVisible => CurrentMode == AppWorkspaceMode.Inbound;
+    public bool IsTransferVisible => CurrentMode == AppWorkspaceMode.Transfer;
     public bool IsOutboundVisible => CurrentMode == AppWorkspaceMode.Outbound;
     public bool IsWorkspaceChromeVisible => CurrentMode != AppWorkspaceMode.ModeSelect;
 
@@ -126,6 +128,7 @@ public sealed partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsModeSelectVisible));
         OnPropertyChanged(nameof(IsInboundVisible));
+        OnPropertyChanged(nameof(IsTransferVisible));
         OnPropertyChanged(nameof(IsOutboundVisible));
         OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
         IsUserMenuOpen = false;
@@ -172,7 +175,11 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         if (!_suppressInboundMatchReset)
+        {
             IsObsMatched = false;
+            IsInboundReturnProduct = false;
+            InboundOrderStatusDisplay = string.Empty;
+        }
 
         LookupInboundCommand.NotifyCanExecuteChanged();
         ClearInboundCommand.NotifyCanExecuteChanged();
@@ -182,7 +189,13 @@ public sealed partial class MainViewModel : ObservableObject
     private bool isObsMatched;
 
     [ObservableProperty]
+    private bool isInboundReturnProduct;
+
+    [ObservableProperty]
     private string inboundStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string inboundOrderStatusDisplay = string.Empty;
 
     [ObservableProperty]
     private string productSummary = string.Empty;
@@ -282,16 +295,16 @@ public sealed partial class MainViewModel : ObservableObject
     private string historySearchText = string.Empty;
 
     [ObservableProperty]
-    private DateTime? historyFromDate;
+    private DateTime historyDay = DateTime.Today;
 
     [ObservableProperty]
-    private DateTime? historyToDate;
+    private string historyDayLabel = string.Empty;
+
+    [ObservableProperty]
+    private int historyRecordCount;
 
     [ObservableProperty]
     private bool historyOnlyErrors;
-
-    [ObservableProperty]
-    private bool isHistoryAdvancedFilterOpen;
 
     [ObservableProperty]
     private bool? allHistorySelected;
@@ -303,6 +316,8 @@ public sealed partial class MainViewModel : ObservableObject
     private int productItemCount;
 
     public ObservableCollection<PrintHistoryEntry> History { get; } = new();
+
+    public bool CanGoHistoryNextDay => HistoryDay.Date < DateTime.Today;
 
     private bool _syncingHistorySelection;
     private bool _clearingHistoryFilter;
@@ -337,6 +352,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     public async Task ReloadSettingsFromStoreAsync(CancellationToken ct = default)
     {
+        await _warehouseIds.ReloadAsync(ct);
         await LoadSettingsAsync(ct);
     }
 
@@ -447,7 +463,7 @@ public sealed partial class MainViewModel : ObservableObject
             DisplayedTrackingNumber = tn;
             _productSummaryIsDefaultHint = false;
 
-            var result = await _ordersApiClient.GetOrderByTrackingNumberAsync(tn, CancellationToken.None);
+            var result = await _warehouseApiClient.LookupAsync(tn, CancellationToken.None);
             if (!result.IsSuccess || result.Value is null)
             {
                 ProductItems.Clear();
@@ -467,7 +483,7 @@ public sealed partial class MainViewModel : ObservableObject
             HasActiveOrder = true;
 
             var order = result.Value;
-            ApplyOrderToUi(order, tn);
+            ApplyWarehouseLookupToUi(order, tn);
 
             var labelSettings = _currentSettings?.LabelPrintSettings ?? new LabelPrintSettings();
             _lastHistoryEntry = OrderPresentationMapper.CreateHistoryEntry(
@@ -478,7 +494,10 @@ public sealed partial class MainViewModel : ObservableObject
                 _localization.Get("HistoryNotesSample"));
 
             await _history.AddAsync(_lastHistoryEntry, CancellationToken.None);
-            await RefreshHistoryAsync(CancellationToken.None);
+            if (HistoryDay.Date != DateTime.Today)
+                HistoryDay = DateTime.Today;
+            else
+                await RefreshHistoryAsync(CancellationToken.None);
             return true;
         }
         catch (Exception ex)
@@ -504,58 +523,80 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty]
     private string? lastQueryFailedMessage;
 
-    private async Task RefreshHistoryAsync(CancellationToken ct)
+    private async Task RefreshHistoryAsync(CancellationToken ct = default)
     {
         try
         {
-            var rows = await _history.GetRecentAsync(200, ct);
+            var rows = await _history.GetForDayAsync(new HistoryFilter
+            {
+                DayLocal = DateOnly.FromDateTime(HistoryDay.Date),
+                SearchText = HistorySearchText,
+                OnlyErrors = HistoryOnlyErrors,
+                Take = 2000
+            }, ct);
             ReplaceHistoryRows(rows);
+            HistoryRecordCount = History.Count;
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Geçmiş yüklenirken hata oluştu.");
+            ReplaceHistoryRows([]);
+            HistoryRecordCount = 0;
         }
+    }
+
+    partial void OnHistoryDayChanged(DateTime value)
+    {
+        var normalized = value.Date;
+        if (normalized != value)
+        {
+            HistoryDay = normalized;
+            return;
+        }
+
+        RefreshHistoryDayLabel();
+        OnPropertyChanged(nameof(CanGoHistoryNextDay));
+        HistoryPreviousDayCommand.NotifyCanExecuteChanged();
+        HistoryNextDayCommand.NotifyCanExecuteChanged();
+        _ = RefreshHistoryAsync();
+    }
+
+    private void RefreshHistoryDayLabel()
+    {
+        HistoryDayLabel = HistoryDay.ToString("dd MMMM yyyy", System.Globalization.CultureInfo.CurrentCulture);
+    }
+
+    [RelayCommand]
+    private void HistoryPreviousDay()
+    {
+        HistoryDay = HistoryDay.Date.AddDays(-1);
+    }
+
+    [RelayCommand(CanExecute = nameof(CanHistoryNextDay))]
+    private void HistoryNextDay()
+    {
+        var next = HistoryDay.Date.AddDays(1);
+        if (next > DateTime.Today)
+            return;
+        HistoryDay = next;
+    }
+
+    private bool CanHistoryNextDay() => HistoryDay.Date < DateTime.Today;
+
+    [RelayCommand]
+    private void HistoryGoToday()
+    {
+        HistoryDay = DateTime.Today;
     }
 
     [RelayCommand]
     private async Task ApplyHistoryFilterAsync()
-    {
-        try
-        {
-            var filter = new HistoryFilter
-            {
-                SearchText = HistorySearchText,
-                FromDateUtc = ToUtcStartOfLocalDay(HistoryFromDate),
-                ToDateUtc = ToUtcEndOfLocalDay(HistoryToDate),
-                OnlyErrors = HistoryOnlyErrors,
-                Take = 200
-            };
-
-            var rows = await _history.GetAsync(filter, CancellationToken.None);
-            ReplaceHistoryRows(rows);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Geçmiş filtrelenirken hata oluştu.");
-        }
-    }
-
-    partial void OnHistoryFromDateChanged(DateTime? value)
-    {
-        if (!_clearingHistoryFilter)
-            _ = ApplyHistoryFilterWhenReadyAsync();
-    }
-
-    partial void OnHistoryToDateChanged(DateTime? value)
-    {
-        if (!_clearingHistoryFilter)
-            _ = ApplyHistoryFilterWhenReadyAsync();
-    }
+        => await RefreshHistoryAsync();
 
     partial void OnHistoryOnlyErrorsChanged(bool value)
     {
         if (!_clearingHistoryFilter)
-            _ = ApplyHistoryFilterWhenReadyAsync();
+            _ = RefreshHistoryAsync();
     }
 
     partial void OnAllHistorySelectedChanged(bool? value)
@@ -575,14 +616,6 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private async Task ApplyHistoryFilterWhenReadyAsync()
-    {
-        if (IsHistoryFilterActive())
-            await ApplyHistoryFilterAsync();
-        else
-            await RefreshHistoryAsync(CancellationToken.None);
-    }
-
     private void ReplaceHistoryRows(IEnumerable<PrintHistoryEntry> rows)
     {
         DetachHistoryRowHandlers();
@@ -595,6 +628,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         IsHistoryEmpty = History.Count == 0;
+        HistoryRecordCount = History.Count;
         UpdateAllHistorySelectedState();
     }
 
@@ -643,20 +677,12 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void ToggleHistoryAdvancedFilter()
-    {
-        IsHistoryAdvancedFilterOpen = !IsHistoryAdvancedFilterOpen;
-    }
-
-    [RelayCommand]
     private async Task ClearHistoryFilterAsync()
     {
         _clearingHistoryFilter = true;
         try
         {
             HistorySearchText = string.Empty;
-            HistoryFromDate = null;
-            HistoryToDate = null;
             HistoryOnlyErrors = false;
             AllHistorySelected = false;
         }
@@ -665,7 +691,7 @@ public sealed partial class MainViewModel : ObservableObject
             _clearingHistoryFilter = false;
         }
 
-        await RefreshHistoryAsync(CancellationToken.None);
+        await RefreshHistoryAsync();
     }
 
     public async Task UpdateLastPrintResultAsync(bool success, string? errorMessage = null)
@@ -677,7 +703,10 @@ public sealed partial class MainViewModel : ObservableObject
                 _lastHistoryEntry.Success = success;
                 _lastHistoryEntry.ErrorMessage = errorMessage;
                 await _history.UpdateAsync(_lastHistoryEntry, CancellationToken.None);
-                await RefreshHistoryAsync(CancellationToken.None);
+                if (HistoryDay.Date != DateTime.Today)
+                    HistoryDay = DateTime.Today;
+                else
+                    await RefreshHistoryAsync(CancellationToken.None);
             }
             catch (Exception ex)
             {
@@ -691,15 +720,28 @@ public sealed partial class MainViewModel : ObservableObject
 
     private async Task MarkOutboundReadyAfterPrintAsync()
     {
-        var reference = _pendingOutboundReference?.Trim();
-        if (string.IsNullOrWhiteSpace(reference))
+        var orderId = _pendingOutboundOrderId;
+        if (orderId is null or <= 0)
             return;
+
+        var warehouseId = _warehouseIds.GetMexicoWarehouseId();
+        if (warehouseId <= 0)
+        {
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductOutboundTitle"),
+                _localization.Get("Warehouse_MexicoIdMissing"));
+            return;
+        }
 
         while (true)
         {
             try
             {
-                var result = await _ordersApiClient.MarkOutboundReadyAsync(reference, CancellationToken.None);
+                var result = await _warehouseApiClient.MarkOutboundReadyAsync(
+                    orderId.Value,
+                    new WarehouseOutboundRequest(warehouseId),
+                    CancellationToken.None);
                 if (result.IsSuccess)
                 {
                     _dialogs.Show(
@@ -721,7 +763,7 @@ public sealed partial class MainViewModel : ObservableObject
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Çıkışa hazır işaretleme başarısız. Reference={Reference}", reference);
+                _logger.LogWarning(ex, "Çıkışa hazır işaretleme başarısız. OrderId={OrderId}", orderId);
                 var retry = _dialogs.Confirm(
                     _localization.Get("Outbound_MarkFailedTitle"),
                     _localization.Get("Outbound_MarkFailedRetry", _localization.Get("Error_Connection")));
@@ -774,37 +816,32 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanClearOperation()
         => !IsBusy && (HasActiveOrder || LabelReady || !string.IsNullOrWhiteSpace(TrackingNumber));
 
-    private void ApplyOrderToUi(OrderDto order, string scannedTrackingNumber)
+    private void ApplyWarehouseLookupToUi(WarehouseLookupDto order, string scannedTrackingNumber)
     {
-        var tracking = string.IsNullOrWhiteSpace(order.TrackingNumber)
-            ? scannedTrackingNumber
-            : order.TrackingNumber.Trim();
+        DisplayedTrackingNumber = scannedTrackingNumber;
+        ProductSummary = _localization.Get("ProductSummaryAfterQuery", scannedTrackingNumber);
 
-        DisplayedTrackingNumber = tracking;
-        ProductSummary = _localization.Get("ProductSummaryAfterQuery", tracking);
+        CurrentOrderNumber = order.OrderNumber ?? string.Empty;
+        CurrentAmazonOrderId = string.Empty;
+        CurrentCustomerName = string.Empty;
+        CurrentCarrierName = OrderPresentationMapper.FormatCarrierDisplay(order.CarrierName, order.CarrierCode);
+        CurrentOrderStatus = order.OrderStatusDisplay ?? string.Empty;
 
-        CurrentOrderNumber = order.ObserwayOrderNumber ?? string.Empty;
-        CurrentAmazonOrderId = order.AmazonOrderId ?? string.Empty;
-        CurrentCustomerName = order.Customer?.FullName ?? string.Empty;
-        CurrentCarrierName = OrderPresentationMapper.FormatCarrierDisplay(order.CarrierName, order.CarrierService);
-        CurrentOrderStatus = order.OrderStatus ?? string.Empty;
-
-        PdfSource = OrderPresentationMapper.TryCreateLabelUri(order.Label, _apiBaseUrl.GetBaseUrl());
-        _pendingOutboundReference = PdfSource is not null ? scannedTrackingNumber : null;
+        PdfSource = OrderPresentationMapper.TryCreateLabelUri(order.LabelUrl, _apiBaseUrl.GetBaseUrl());
+        _pendingOutboundOrderId = PdfSource is not null ? order.OrderId : null;
 
         ProductItems.Clear();
-        var products = order.GetProducts();
-        var apiBase = _apiBaseUrl.GetBaseUrl();
+        var products = order.Products ?? [];
         foreach (var product in products)
-            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product, apiBase));
+            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product));
 
         ProductItemCount = products.Count;
         if (products.Count == 0)
         {
             _logger.LogWarning(
                 "UI ürün listesi boş. Order={Order} Tracking={Tracking}",
-                order.ObserwayOrderNumber,
-                tracking);
+                order.OrderNumber,
+                scannedTrackingNumber);
             ProductItems.Add(new ProductPreviewItem { OfficialName = _localization.Get("ProductSummaryEmptyProducts") });
         }
     }
@@ -822,7 +859,7 @@ public sealed partial class MainViewModel : ObservableObject
         HasActiveOrder = false;
         ProductItemCount = 0;
         ProductItems.Clear();
-        _pendingOutboundReference = null;
+        _pendingOutboundOrderId = null;
     }
 
     [RelayCommand]
@@ -837,11 +874,21 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void SelectProductTransfer()
+    {
+        IsUserMenuOpen = false;
+        ClearTransferState();
+        CurrentMode = AppWorkspaceMode.Transfer;
+    }
+
+    [RelayCommand]
     private void SelectProductOutbound()
     {
         IsUserMenuOpen = false;
         SelectedTabIndex = 0;
+        HistoryDay = DateTime.Today;
         CurrentMode = AppWorkspaceMode.Outbound;
+        _ = RefreshHistoryAsync();
     }
 
     [RelayCommand]
@@ -989,13 +1036,15 @@ public sealed partial class MainViewModel : ObservableObject
 
         IsBusy = true;
         IsObsMatched = false;
+        IsInboundReturnProduct = false;
         InboundStatusMessage = string.Empty;
+        InboundOrderStatusDisplay = string.Empty;
         try
         {
-            var result = await _inboundApiClient.MarkInboundReceivedAsync(query);
-            if (!result.IsSuccess || result.Value is null)
+            var warehouseId = _warehouseIds.GetTexasWarehouseId();
+            if (warehouseId <= 0)
             {
-                InboundStatusMessage = result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                InboundStatusMessage = _localization.Get("Warehouse_TexasIdMissing");
                 await SaveInboundHistoryAsync(query, null, false, InboundStatusMessage);
                 _dialogs.Show(
                     AppDialogKind.Warning,
@@ -1004,12 +1053,44 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var orderNumber = result.Value.OrderNumber;
+            var lookup = await _warehouseApiClient.LookupAsync(query);
+            if (!lookup.IsSuccess || lookup.Value is null)
+            {
+                InboundStatusMessage = lookup.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                await SaveInboundHistoryAsync(query, null, false, InboundStatusMessage);
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
+                return;
+            }
+
+            var order = lookup.Value;
+            InboundOrderStatusDisplay = order.OrderStatusDisplay ?? string.Empty;
+            IsInboundReturnProduct = order.IsCancelledOrReturned;
+
+            var mark = await _warehouseApiClient.MarkInboundReceivedAsync(
+                order.OrderId,
+                new WarehouseInboundRequest(warehouseId, InboundTrackingNumber: query));
+            if (!mark.IsSuccess || mark.Value is null)
+            {
+                InboundStatusMessage = mark.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                await SaveInboundHistoryAsync(query, order.OrderNumber, false, InboundStatusMessage);
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
+                return;
+            }
+
+            var orderNumber = mark.Value.OrderNumber;
             IsObsMatched = true;
-            InboundStatusMessage = _localization.Get("Inbound_MarkedSuccess", orderNumber);
+            InboundStatusMessage = IsInboundReturnProduct
+                ? _localization.Get("Inbound_ReturnProductMarked", orderNumber)
+                : _localization.Get("Inbound_MarkedSuccess", orderNumber);
             await SaveInboundHistoryAsync(query, orderNumber, true, null);
             _dialogs.Show(
-                AppDialogKind.Info,
+                IsInboundReturnProduct ? AppDialogKind.Warning : AppDialogKind.Info,
                 _localization.Get("ModeSelect_ProductInboundTitle"),
                 InboundStatusMessage);
 
@@ -1051,13 +1132,16 @@ public sealed partial class MainViewModel : ObservableObject
         => !IsBusy
            && (!string.IsNullOrWhiteSpace(InboundQuery)
                || IsObsMatched
+               || IsInboundReturnProduct
                || !string.IsNullOrWhiteSpace(InboundStatusMessage));
 
     private void ClearInboundState()
     {
         InboundQuery = string.Empty;
         IsObsMatched = false;
+        IsInboundReturnProduct = false;
         InboundStatusMessage = string.Empty;
+        InboundOrderStatusDisplay = string.Empty;
         ClearInboundCommand.NotifyCanExecuteChanged();
         LookupInboundCommand.NotifyCanExecuteChanged();
     }
@@ -1078,6 +1162,286 @@ public sealed partial class MainViewModel : ObservableObject
         LookupInboundCommand.NotifyCanExecuteChanged();
     }
 
+    private bool _suppressTransferMatchReset;
+
+    [ObservableProperty]
+    private string transferQuery = string.Empty;
+
+    partial void OnTransferQueryChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            var cleaned = value.Trim().Trim('\r', '\n', '\t');
+            if (cleaned != value)
+                TransferQuery = cleaned;
+        }
+
+        if (!_suppressTransferMatchReset)
+        {
+            IsTransferSuccess = false;
+            TransferLookupOrderId = null;
+        }
+
+        LookupTransferCommand.NotifyCanExecuteChanged();
+        LoadToVehicleCommand.NotifyCanExecuteChanged();
+        ClearTransferCommand.NotifyCanExecuteChanged();
+    }
+
+    [ObservableProperty]
+    private string transferVehicleName = string.Empty;
+
+    partial void OnTransferVehicleNameChanged(string value)
+    {
+        if (!string.IsNullOrEmpty(value))
+        {
+            var cleaned = value.Trim();
+            if (cleaned.Length > 100)
+                cleaned = cleaned[..100];
+            if (cleaned != value)
+                TransferVehicleName = cleaned;
+        }
+
+        LoadToVehicleCommand.NotifyCanExecuteChanged();
+        ClearTransferCommand.NotifyCanExecuteChanged();
+    }
+
+    [ObservableProperty]
+    private string transferStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string transferOrderStatusDisplay = string.Empty;
+
+    [ObservableProperty]
+    private string transferBlockReason = string.Empty;
+
+    [ObservableProperty]
+    private bool isTransferBlocked;
+
+    [ObservableProperty]
+    private bool isTransferSuccess;
+
+    [ObservableProperty]
+    private bool canTransferLoad;
+
+    private long? TransferLookupOrderId { get; set; }
+
+    [RelayCommand(CanExecute = nameof(CanLookupTransfer))]
+    private async Task LookupTransferAsync()
+    {
+        var query = TransferQuery?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(query))
+            return;
+
+        IsBusy = true;
+        IsTransferSuccess = false;
+        IsTransferBlocked = false;
+        CanTransferLoad = false;
+        TransferStatusMessage = string.Empty;
+        TransferOrderStatusDisplay = string.Empty;
+        TransferBlockReason = string.Empty;
+        TransferLookupOrderId = null;
+        try
+        {
+            var lookup = await _warehouseApiClient.LookupAsync(query);
+            if (!lookup.IsSuccess || lookup.Value is null)
+            {
+                TransferStatusMessage = lookup.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductTransferTitle"),
+                    TransferStatusMessage);
+                return;
+            }
+
+            var order = lookup.Value;
+            TransferLookupOrderId = order.OrderId;
+            TransferOrderStatusDisplay = order.OrderStatusDisplay ?? string.Empty;
+
+            if (!order.CanLoadToVehicle)
+            {
+                IsTransferBlocked = true;
+                CanTransferLoad = false;
+                TransferBlockReason = string.IsNullOrWhiteSpace(order.BlockReason)
+                    ? (order.IsCancelledOrReturned
+                        ? _localization.Get("Transfer_ReturnOrCancelled")
+                        : _localization.Get("Transfer_CannotLoad"))
+                    : order.BlockReason!;
+                TransferStatusMessage = TransferBlockReason;
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductTransferTitle"),
+                    TransferStatusMessage);
+                return;
+            }
+
+            if (order.AlreadyLoadedToVehicle)
+            {
+                TransferStatusMessage = _localization.Get(
+                    "Transfer_AlreadyLoaded",
+                    order.LastVehicleName ?? "—");
+            }
+
+            CanTransferLoad = true;
+            TransferStatusMessage = string.IsNullOrWhiteSpace(TransferStatusMessage)
+                ? _localization.Get("Transfer_ReadyToLoad", order.OrderNumber)
+                : TransferStatusMessage;
+
+            if (!string.IsNullOrWhiteSpace(TransferVehicleName))
+                await LoadToVehicleCoreAsync(order.OrderId, query);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Transfer lookup başarısız.");
+            TransferStatusMessage = _localization.Get("Error_Connection");
+            _dialogs.Show(
+                AppDialogKind.Error,
+                _localization.Get("ModeSelect_ProductTransferTitle"),
+                TransferStatusMessage);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyTransferCommands();
+        }
+    }
+
+    private bool CanLookupTransfer()
+        => !IsBusy && !string.IsNullOrWhiteSpace(TransferQuery);
+
+    [RelayCommand(CanExecute = nameof(CanLoadToVehicle))]
+    private async Task LoadToVehicleAsync()
+    {
+        if (TransferLookupOrderId is null or <= 0)
+        {
+            await LookupTransferAsync();
+            return;
+        }
+
+        IsBusy = true;
+        try
+        {
+            await LoadToVehicleCoreAsync(TransferLookupOrderId.Value, TransferQuery?.Trim() ?? string.Empty);
+        }
+        finally
+        {
+            IsBusy = false;
+            NotifyTransferCommands();
+        }
+    }
+
+    private bool CanLoadToVehicle()
+        => !IsBusy
+           && !IsTransferBlocked
+           && !string.IsNullOrWhiteSpace(TransferVehicleName)
+           && (TransferLookupOrderId is > 0 || !string.IsNullOrWhiteSpace(TransferQuery));
+
+    private async Task LoadToVehicleCoreAsync(long orderId, string reference)
+    {
+        var vehicleName = TransferVehicleName?.Trim() ?? string.Empty;
+        if (string.IsNullOrWhiteSpace(vehicleName))
+        {
+            TransferStatusMessage = _localization.Get("Transfer_VehicleRequired");
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductTransferTitle"),
+                TransferStatusMessage);
+            return;
+        }
+
+        var warehouseId = _warehouseIds.GetTexasWarehouseId();
+        if (warehouseId <= 0)
+        {
+            TransferStatusMessage = _localization.Get("Warehouse_TexasIdMissing");
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductTransferTitle"),
+                TransferStatusMessage);
+            return;
+        }
+
+        var result = await _warehouseApiClient.LoadToVehicleAsync(
+            orderId,
+            new WarehouseLoadToVehicleRequest(warehouseId, vehicleName));
+        if (!result.IsSuccess || result.Value is null)
+        {
+            TransferStatusMessage = result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+            IsTransferSuccess = false;
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductTransferTitle"),
+                TransferStatusMessage);
+            return;
+        }
+
+        IsTransferSuccess = true;
+        CanTransferLoad = false;
+        TransferStatusMessage = _localization.Get(
+            "Transfer_LoadedSuccess",
+            result.Value.OrderNumber,
+            result.Value.VehicleName);
+        _dialogs.Show(
+            AppDialogKind.Info,
+            _localization.Get("ModeSelect_ProductTransferTitle"),
+            TransferStatusMessage);
+
+        _suppressTransferMatchReset = true;
+        try
+        {
+            TransferQuery = string.Empty;
+        }
+        finally
+        {
+            _suppressTransferMatchReset = false;
+        }
+
+        TransferLookupOrderId = null;
+    }
+
+    [RelayCommand(CanExecute = nameof(CanClearTransfer))]
+    private void ClearTransfer() => ClearTransferState();
+
+    private bool CanClearTransfer()
+        => !IsBusy
+           && (!string.IsNullOrWhiteSpace(TransferQuery)
+               || !string.IsNullOrWhiteSpace(TransferStatusMessage)
+               || IsTransferSuccess
+               || IsTransferBlocked);
+
+    private void ClearTransferState()
+    {
+        TransferQuery = string.Empty;
+        TransferStatusMessage = string.Empty;
+        TransferOrderStatusDisplay = string.Empty;
+        TransferBlockReason = string.Empty;
+        IsTransferBlocked = false;
+        IsTransferSuccess = false;
+        CanTransferLoad = false;
+        TransferLookupOrderId = null;
+        NotifyTransferCommands();
+    }
+
+    public void ClearTransferTrackingForNextScan()
+    {
+        _suppressTransferMatchReset = true;
+        try
+        {
+            TransferQuery = string.Empty;
+        }
+        finally
+        {
+            _suppressTransferMatchReset = false;
+        }
+
+        NotifyTransferCommands();
+    }
+
+    private void NotifyTransferCommands()
+    {
+        LookupTransferCommand.NotifyCanExecuteChanged();
+        LoadToVehicleCommand.NotifyCanExecuteChanged();
+        ClearTransferCommand.NotifyCanExecuteChanged();
+    }
+
     [RelayCommand]
     private async Task LogoutAsync()
     {
@@ -1094,15 +1458,31 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void Reprint(PrintHistoryEntry? entry)
+    private async Task ReprintAsync(PrintHistoryEntry? entry)
     {
         if (entry?.PdfUrl is null)
             return;
 
         _lastHistoryEntry = entry;
-        _pendingOutboundReference = string.IsNullOrWhiteSpace(entry.TrackingNumber)
+        _pendingOutboundOrderId = null;
+
+        var reference = string.IsNullOrWhiteSpace(entry.TrackingNumber)
             ? entry.OrderNumber
             : entry.TrackingNumber;
+        if (!string.IsNullOrWhiteSpace(reference))
+        {
+            try
+            {
+                var lookup = await _warehouseApiClient.LookupAsync(reference.Trim());
+                if (lookup.IsSuccess && lookup.Value is not null)
+                    _pendingOutboundOrderId = lookup.Value.OrderId;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Yeniden yazdırma öncesi lookup başarısız.");
+            }
+        }
+
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(entry.PdfUrl, _apiBaseUrl.GetBaseUrl());
         PrintRequested?.Invoke();
     }
@@ -1159,8 +1539,8 @@ public sealed partial class MainViewModel : ObservableObject
         => await SelectHistoryEntryAsync(_historyContextEntry);
 
     [RelayCommand(CanExecute = nameof(HasHistoryContextEntry))]
-    private void ReprintHistoryContextEntry()
-        => Reprint(_historyContextEntry);
+    private async Task ReprintHistoryContextEntryAsync()
+        => await ReprintAsync(_historyContextEntry);
 
     [RelayCommand(CanExecute = nameof(HasHistoryContextEntry))]
     private async Task DeleteHistoryContextEntryAsync()
@@ -1189,39 +1569,8 @@ public sealed partial class MainViewModel : ObservableObject
         await QueryAsync();
     }
 
-    private static DateTimeOffset? ToUtcStartOfLocalDay(DateTime? date)
-    {
-        if (!date.HasValue)
-            return null;
-
-        var localStart = date.Value.Date;
-        var offset = TimeZoneInfo.Local.GetUtcOffset(localStart);
-        return new DateTimeOffset(localStart, offset).ToUniversalTime();
-    }
-
-    private static DateTimeOffset? ToUtcEndOfLocalDay(DateTime? date)
-    {
-        if (!date.HasValue)
-            return null;
-
-        var localEnd = date.Value.Date.AddDays(1).AddTicks(-1);
-        var offset = TimeZoneInfo.Local.GetUtcOffset(localEnd);
-        return new DateTimeOffset(localEnd, offset).ToUniversalTime();
-    }
-
-    private bool IsHistoryFilterActive()
-        => !string.IsNullOrWhiteSpace(HistorySearchText)
-           || HistoryFromDate.HasValue
-           || HistoryToDate.HasValue
-           || HistoryOnlyErrors;
-
     private async Task ReloadHistoryAsync(CancellationToken ct = default)
-    {
-        if (IsHistoryFilterActive())
-            await ApplyHistoryFilterAsync();
-        else
-            await RefreshHistoryAsync(ct);
-    }
+        => await RefreshHistoryAsync(ct);
 
     [RelayCommand]
     private async Task DeleteHistoryEntryAsync(PrintHistoryEntry? entry)
@@ -1293,7 +1642,7 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var suggestedName = $"LabelFlow_History_{DateTime.Now:yyyyMMdd_HHmm}.xlsx";
+            var suggestedName = $"LabelFlow_History_{HistoryDay:yyyyMMdd}.xlsx";
             var path = PromptSaveExcelFile?.Invoke(suggestedName);
             if (string.IsNullOrWhiteSpace(path))
                 return;

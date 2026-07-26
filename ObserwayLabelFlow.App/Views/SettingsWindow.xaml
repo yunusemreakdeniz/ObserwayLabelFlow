@@ -153,6 +153,18 @@
                         <TextBox Style="{StaticResource TextBoxModern}"
                                  Text="{Binding ApiBaseUrl, UpdateSourceTrigger=PropertyChanged}"
                                  Height="46" />
+                        <TextBlock Margin="0,14,0,0"
+                                   infra:FieldLabelAssist.LocKey="SettingsTexasWarehouseId"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding TexasWarehouseIdText, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="46" />
+                        <TextBlock Margin="0,14,0,0"
+                                   infra:FieldLabelAssist.LocKey="SettingsMexicoWarehouseId"
+                                   Style="{StaticResource FilterFieldLabel}" />
+                        <TextBox Style="{StaticResource TextBoxModern}"
+                                 Text="{Binding MexicoWarehouseIdText, UpdateSourceTrigger=PropertyChanged}"
+                                 Height="46" />
                     </StackPanel>
 
                     <StackPanel Grid.Row="6">

@@ -20,49 +20,40 @@ public sealed class HistoryService(IDbContextFactory<LabelFlowDbContext> factory
         await db.SaveChangesAsync(ct);
     }
 
-    public async Task<IReadOnlyList<PrintHistoryEntry>> GetRecentAsync(int take = 200, CancellationToken ct = default)
-    {
-        take = Math.Clamp(take, 1, 2000);
-        await using var db = await factory.CreateDbContextAsync(ct);
-        // SQLite: DateTimeOffset ORDER BY is not translated; Id is autoincrement so newest rows have largest Id.
-        return await db.PrintHistory
-            .AsNoTracking()
-            .OrderByDescending(x => x.Id)
-            .Take(take)
-            .ToListAsync(ct);
-    }
-
-    public async Task<IReadOnlyList<PrintHistoryEntry>> GetAsync(HistoryFilter filter, CancellationToken ct = default)
+    public async Task<IReadOnlyList<PrintHistoryEntry>> GetForDayAsync(HistoryFilter filter, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(filter);
-        filter.Take = Math.Clamp(filter.Take, 1, 2000);
+        filter.Take = Math.Clamp(filter.Take, 1, 5000);
+
+        var (fromUtc, toUtcExclusive) = GetUtcRangeForLocalDay(filter.DayLocal);
 
         await using var db = await factory.CreateDbContextAsync(ct);
-        var query = db.PrintHistory.AsNoTracking();
+
+        // SQLite cannot reliably translate DateTimeOffset range comparisons; filter in memory.
+        var rows = await db.PrintHistory.AsNoTracking().ToListAsync(ct);
+
+        IEnumerable<PrintHistoryEntry> filtered = rows
+            .Where(x => x.CreatedAtUtc >= fromUtc && x.CreatedAtUtc < toUtcExclusive);
 
         if (filter.OnlyErrors)
-            query = query.Where(x => !x.Success);
-
-        if (filter.FromDateUtc.HasValue)
-            query = query.Where(x => x.CreatedAtUtc >= filter.FromDateUtc.Value);
-
-        if (filter.ToDateUtc.HasValue)
-            query = query.Where(x => x.CreatedAtUtc <= filter.ToDateUtc.Value);
+            filtered = filtered.Where(x => !x.Success);
 
         if (!string.IsNullOrWhiteSpace(filter.SearchText))
         {
-            var term = filter.SearchText.Trim().ToLowerInvariant();
-            query = query.Where(x =>
-                (x.TrackingNumber != null && x.TrackingNumber.ToLower().Contains(term)) ||
-                (x.OrderNumber != null && x.OrderNumber.ToLower().Contains(term)) ||
-                (x.CustomerName != null && x.CustomerName.ToLower().Contains(term)) ||
-                (x.CarrierName != null && x.CarrierName.ToLower().Contains(term)));
+            var term = filter.SearchText.Trim();
+            filtered = filtered.Where(x =>
+                ContainsIgnoreCase(x.TrackingNumber, term) ||
+                ContainsIgnoreCase(x.OrderNumber, term) ||
+                ContainsIgnoreCase(x.CustomerName, term) ||
+                ContainsIgnoreCase(x.CarrierName, term) ||
+                ContainsIgnoreCase(x.PrintedBy, term) ||
+                ContainsIgnoreCase(x.ErrorMessage, term));
         }
 
-        return await query
+        return filtered
             .OrderByDescending(x => x.Id)
             .Take(filter.Take)
-            .ToListAsync(ct);
+            .ToList();
     }
 
     public async Task DeleteAsync(long id, CancellationToken ct = default)
@@ -81,5 +72,19 @@ public sealed class HistoryService(IDbContextFactory<LabelFlowDbContext> factory
 
         await using var db = await factory.CreateDbContextAsync(ct);
         await db.PrintHistory.Where(x => idList.Contains(x.Id)).ExecuteDeleteAsync(ct);
+    }
+
+    private static bool ContainsIgnoreCase(string? value, string term)
+        => !string.IsNullOrEmpty(value)
+           && value.Contains(term, StringComparison.OrdinalIgnoreCase);
+
+    private static (DateTimeOffset FromUtc, DateTimeOffset ToUtcExclusive) GetUtcRangeForLocalDay(DateOnly dayLocal)
+    {
+        var tz = TimeZoneInfo.Local;
+        var startLocal = DateTime.SpecifyKind(dayLocal.ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+        var endLocal = DateTime.SpecifyKind(dayLocal.AddDays(1).ToDateTime(TimeOnly.MinValue), DateTimeKind.Unspecified);
+        var startUtc = TimeZoneInfo.ConvertTimeToUtc(startLocal, tz);
+        var endUtc = TimeZoneInfo.ConvertTimeToUtc(endLocal, tz);
+        return (new DateTimeOffset(startUtc), new DateTimeOffset(endUtc));
     }
 }

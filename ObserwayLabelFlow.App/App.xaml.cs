@@ -16,13 +16,11 @@ using ObserwayLabelFlow.App.Views;
 using ObserwayLabelFlow.Core.Auth;
 using ObserwayLabelFlow.Core.Configuration;
 using ObserwayLabelFlow.Core.History;
-using ObserwayLabelFlow.Core.Inbound;
-using ObserwayLabelFlow.Core.Orders;
 using ObserwayLabelFlow.Core.Security;
+using ObserwayLabelFlow.Core.Warehouse;
 using ObserwayLabelFlow.Infrastructure.Auth;
-using ObserwayLabelFlow.Infrastructure.Inbound;
-using ObserwayLabelFlow.Infrastructure.Orders;
 using ObserwayLabelFlow.Infrastructure.Security;
+using ObserwayLabelFlow.Infrastructure.Warehouse;
 
 namespace ObserwayLabelFlow.App;
 
@@ -66,6 +64,7 @@ public partial class App : Application
                     var allowInvalidCerts = bool.TryParse(ctx.Configuration["Api:AllowInvalidCerts"], out var b) && b;
 
                     services.AddSingleton<IApiBaseUrlProvider, AppApiBaseUrlProvider>();
+                    services.AddSingleton<IWarehouseIdsProvider, WarehouseIdsProvider>();
                     services.AddSingleton<IHistoryExportService, HistoryExcelExportService>();
                     services.AddSingleton<IToastService, ToastService>();
                     services.AddSingleton<IAppDialogService, AppDialogService>();
@@ -90,23 +89,7 @@ public partial class App : Application
                         return handler;
                     });
 
-                    services.AddHttpClient<IOrdersApiClient, OrdersApiClient>(http =>
-                    {
-                        http.BaseAddress = new Uri(baseUrl);
-                        http.Timeout = TimeSpan.FromSeconds(30);
-                    })
-                    .ConfigurePrimaryHttpMessageHandler(() =>
-                    {
-                        var handler = new HttpClientHandler();
-                        if (allowInvalidCerts)
-                        {
-                            handler.ServerCertificateCustomValidationCallback =
-                                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-                        }
-                        return handler;
-                    });
-
-                    services.AddHttpClient<IInboundApiClient, InboundApiClient>(http =>
+                    services.AddHttpClient<IWarehouseApiClient, WarehouseApiClient>(http =>
                     {
                         http.BaseAddress = new Uri(baseUrl);
                         http.Timeout = TimeSpan.FromSeconds(30);
@@ -190,6 +173,7 @@ public partial class App : Application
             await localization.InitializeAsync();
             FieldLabelAssist.EnsureCultureHook(localization);
             await Services.GetRequiredService<IApiBaseUrlProvider>().ReloadAsync();
+            await Services.GetRequiredService<IWarehouseIdsProvider>().ReloadAsync();
 
             LoginWindow login;
             try

@@ -4,5 +4,6 @@ public enum AppWorkspaceMode
 {
     ModeSelect,
     Inbound,
+    Transfer,
     Outbound
 }

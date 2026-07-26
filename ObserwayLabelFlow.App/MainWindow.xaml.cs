@@ -43,6 +43,7 @@ public partial class MainWindow : Window
     private DateTimeOffset _lastBarcodeInputUtc = DateTimeOffset.MinValue;
     private string? _lastProcessedTracking;
     private string? _lastProcessedInboundTracking;
+    private string? _lastProcessedTransferTracking;
     private int _labelPreviewGeneration;
     private int _statusTickCount;
     private string? _localLabelFilePath;
@@ -64,6 +65,7 @@ public partial class MainWindow : Window
             vm.LogoutRequested -= OnLogoutRequested;
             vm.PrintRequested -= OnPrintRequested;
             DetachInboundHost();
+            DetachTransferHost();
         };
         _sessionService = sessionService;
         _configuration = configuration;
@@ -337,6 +339,7 @@ public partial class MainWindow : Window
                 vm.PropertyChanged += ViewModelOnPropertyChanged;
                 vm.LabelPreviewChanged += OnLabelPreviewChanged;
                 AttachInboundHost();
+                AttachTransferHost();
             }
         }
         catch (Exception ex)
@@ -427,6 +430,24 @@ public partial class MainWindow : Window
         InboundHost.InboundQuerySubmitRequested -= OnInboundQuerySubmitRequested;
     }
 
+    private void AttachTransferHost()
+    {
+        if (TransferHost is null)
+            return;
+
+        TransferHost.TransferQueryInputChanged += OnTransferQueryInputChanged;
+        TransferHost.TransferQuerySubmitRequested += OnTransferQuerySubmitRequested;
+    }
+
+    private void DetachTransferHost()
+    {
+        if (TransferHost is null)
+            return;
+
+        TransferHost.TransferQueryInputChanged -= OnTransferQueryInputChanged;
+        TransferHost.TransferQuerySubmitRequested -= OnTransferQuerySubmitRequested;
+    }
+
     private void OnInboundQueryInputChanged()
     {
         _lastBarcodeInputUtc = DateTimeOffset.UtcNow;
@@ -447,11 +468,37 @@ public partial class MainWindow : Window
         _ = ExecuteInboundLookupAsync(vm);
     }
 
+    private void OnTransferQueryInputChanged()
+    {
+        _lastBarcodeInputUtc = DateTimeOffset.UtcNow;
+        if (DataContext is MainViewModel vm)
+        {
+            vm.RefreshScannerStatus(_lastBarcodeInputUtc);
+            if (string.IsNullOrWhiteSpace(vm.TransferQuery))
+                _lastProcessedTransferTracking = null;
+        }
+    }
+
+    private void OnTransferQuerySubmitRequested()
+    {
+        if (DataContext is not MainViewModel vm)
+            return;
+
+        _lastProcessedTransferTracking = vm.TransferQuery?.Trim();
+        _ = ExecuteTransferLookupAsync(vm);
+    }
+
     private void Window_Activated(object? sender, EventArgs e)
     {
         if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
         {
             ScheduleInboundFocus();
+            return;
+        }
+
+        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+        {
+            ScheduleTransferFocus();
             return;
         }
 
@@ -468,6 +515,8 @@ public partial class MainWindow : Window
         {
             if (vm.CurrentMode == AppWorkspaceMode.Inbound)
                 ScheduleInboundFocus();
+            else if (vm.CurrentMode == AppWorkspaceMode.Transfer)
+                ScheduleTransferFocus();
             else if (vm.CurrentMode == AppWorkspaceMode.Outbound)
                 ScheduleTrackingFocus();
             return;
@@ -489,10 +538,15 @@ public partial class MainWindow : Window
     private void ScheduleInboundFocus()
         => Dispatcher.BeginInvoke(FocusInboundTrackingBox, DispatcherPriority.ApplicationIdle);
 
+    private void ScheduleTransferFocus()
+        => Dispatcher.BeginInvoke(FocusTransferTrackingBox, DispatcherPriority.ApplicationIdle);
+
     private void FocusActiveInput()
     {
         if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
             ScheduleInboundFocus();
+        else if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+            ScheduleTransferFocus();
         else
             ScheduleTrackingFocus();
     }
@@ -503,6 +557,14 @@ public partial class MainWindow : Window
             return;
 
         InboundHost?.FocusQueryBox();
+    }
+
+    private void FocusTransferTrackingBox()
+    {
+        if (DataContext is not MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+            return;
+
+        TransferHost?.FocusQueryBox();
     }
 
     private bool ShouldRefocusTrackingFromCurrentFocus()
@@ -615,6 +677,27 @@ public partial class MainWindow : Window
         {
             vm.ClearInboundTrackingForNextScan();
             ScheduleInboundFocus();
+        }
+    }
+
+    private async Task ExecuteTransferLookupAsync(MainViewModel vm)
+    {
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(vm.TransferVehicleName))
+                await vm.LoadToVehicleCommand.ExecuteAsync(null);
+            else
+                await vm.LookupTransferCommand.ExecuteAsync(null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Transfer barkod/elle sorgu hatası. Query={Query}", vm.TransferQuery);
+            _dialogs.Show(AppDialogKind.Error, _localization.Get("ModeSelect_ProductTransferTitle"), _localization.Get("Error_Connection"), this);
+        }
+        finally
+        {
+            vm.ClearTransferTrackingForNextScan();
+            ScheduleTransferFocus();
         }
     }
 

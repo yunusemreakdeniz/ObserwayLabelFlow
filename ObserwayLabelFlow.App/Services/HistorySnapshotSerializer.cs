@@ -1,6 +1,7 @@
 using System.Text.Json;
 using ObserwayLabelFlow.Core.History;
 using ObserwayLabelFlow.Core.Orders;
+using ObserwayLabelFlow.Core.Warehouse;
 
 namespace ObserwayLabelFlow.App.Services;
 
@@ -25,6 +26,26 @@ internal static class HistorySnapshotSerializer
             return null;
         }
     }
+
+    public static HistoryOrderSnapshot FromWarehouseLookup(WarehouseLookupDto order)
+        => new()
+        {
+            AmazonOrderId = string.Empty,
+            OrderSource = string.Empty,
+            PaymentStatus = string.Empty,
+            OrderCancelStatus = order.IsCancelledOrReturned ? order.OrderStatusDisplay : string.Empty,
+            PaymentType = null,
+            ShippingPrice = null,
+            CarrierService = order.CarrierCode,
+            Customer = null,
+            Products = (order.Products ?? []).Select(p => new HistoryProductSnapshot
+            {
+                Asin = p.Asin,
+                Sku = p.Sku ?? string.Empty,
+                Title = p.Title,
+                Quantity = p.Quantity,
+            }).ToList(),
+        };
 
     public static HistoryOrderSnapshot FromOrder(OrderDto order)
         => new()

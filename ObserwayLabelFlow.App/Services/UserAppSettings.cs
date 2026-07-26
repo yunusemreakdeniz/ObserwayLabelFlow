@@ -43,6 +43,12 @@ public sealed class UserAppSettings
 
     public string ApiBaseUrl { get; set; } = string.Empty;
 
+    /// <summary>TEXAS depo Id (0 = appsettings varsayılanı).</summary>
+    public long TexasWarehouseId { get; set; }
+
+    /// <summary>MEXICO depo Id (0 = appsettings varsayılanı).</summary>
+    public long MexicoWarehouseId { get; set; }
+
     public int BarcodeTimeoutMs { get; set; } = 250;
 
     public BarcodeMode BarcodeMode { get; set; } = BarcodeMode.AutoQueryPrint;

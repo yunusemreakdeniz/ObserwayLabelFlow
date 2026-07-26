@@ -54,10 +54,13 @@
                     Style="{StaticResource TabControlFullWidth}">
             <TabItem Header="{DynamicResource Loc_TabOperation}" Style="{StaticResource TabItemFullWidth}">
                 <Border Style="{StaticResource CardSurface}" Padding="28,32" Margin="0,8,0,0">
-                    <Grid>
-                        <StackPanel VerticalAlignment="Center"
-                                    HorizontalAlignment="Center"
-                                    MaxWidth="640">
+                    <Grid ClipToBounds="True">
+                        <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                      HorizontalScrollBarVisibility="Disabled"
+                                      Padding="0,0,4,0">
+                            <StackPanel VerticalAlignment="Center"
+                                        HorizontalAlignment="Center"
+                                        MaxWidth="640">
                             <Border Width="72"
                                     Height="72"
                                     CornerRadius="18"
@@ -137,6 +140,23 @@
                             <Border Margin="0,28,0,0"
                                     Padding="16,14"
                                     CornerRadius="{StaticResource R12}"
+                                    Background="#2A1A12"
+                                    BorderBrush="#E8A87C"
+                                    BorderThickness="1"
+                                    MaxWidth="520"
+                                    HorizontalAlignment="Stretch"
+                                    Visibility="{Binding IsInboundReturnProduct, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="#E8A87C"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           Text="{DynamicResource Loc_Inbound_ReturnProduct}" />
+                            </Border>
+
+                            <Border Margin="0,16,0,0"
+                                    Padding="16,14"
+                                    CornerRadius="{StaticResource R12}"
                                     Background="#1A2A22"
                                     BorderBrush="{StaticResource ToastSuccessBrush}"
                                     BorderThickness="1"
@@ -158,6 +178,17 @@
                                 </StackPanel>
                             </Border>
 
+                            <TextBlock Margin="0,10,0,0"
+                                       FontSize="13"
+                                       FontWeight="SemiBold"
+                                       Foreground="{StaticResource Text0Brush}"
+                                       TextWrapping="Wrap"
+                                       HorizontalAlignment="Center"
+                                       TextAlignment="Center"
+                                       MaxWidth="520"
+                                       Text="{Binding InboundOrderStatusDisplay}"
+                                       Visibility="{Binding InboundOrderStatusDisplay, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
+
                             <TextBlock Margin="0,14,0,0"
                                        FontSize="13"
                                        Foreground="{StaticResource Text1Brush}"
@@ -167,7 +198,8 @@
                                        MaxWidth="520"
                                        Text="{Binding InboundStatusMessage}"
                                        Visibility="{Binding InboundStatusMessage, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
-                        </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
 
                         <Border Background="#B30B1220"
                                 Panel.ZIndex="200"

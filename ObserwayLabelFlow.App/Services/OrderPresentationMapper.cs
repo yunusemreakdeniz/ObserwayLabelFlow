@@ -2,6 +2,7 @@ using System.Globalization;
 using ObserwayLabelFlow.App.ViewModels;
 using ObserwayLabelFlow.Core.History;
 using ObserwayLabelFlow.Core.Orders;
+using ObserwayLabelFlow.Core.Warehouse;
 
 namespace ObserwayLabelFlow.App.Services;
 
@@ -85,6 +86,17 @@ internal static class OrderPresentationMapper
         };
     }
 
+    public static ProductPreviewItem ToProductPreviewItem(WarehouseProductDto product)
+        => new()
+        {
+            OfficialName = string.IsNullOrWhiteSpace(product.Title) ? product.Asin : product.Title.Trim(),
+            Asin = product.Asin,
+            Sku = product.Sku ?? string.Empty,
+            Quantity = product.Quantity.ToString(CultureInfo.InvariantCulture),
+            Size = string.Empty,
+            ImageUrl = null,
+        };
+
     private static string? ResolveAbsoluteUrl(string url, string? apiBaseUrl)
     {
         var trimmed = url.Trim();
@@ -99,7 +111,7 @@ internal static class OrderPresentationMapper
     }
 
     public static PrintHistoryEntry CreateHistoryEntry(
-        OrderDto order,
+        WarehouseLookupDto order,
         string trackingNumber,
         LabelPrintSettings labelSettings,
         string? printedBy,
@@ -108,19 +120,19 @@ internal static class OrderPresentationMapper
         {
             TrackingNumber = trackingNumber,
             CreatedAtUtc = DateTimeOffset.UtcNow,
-            PdfUrl = order.Label ?? string.Empty,
+            PdfUrl = order.LabelUrl ?? string.Empty,
             Notes = notes,
-            OrderNumber = order.ObserwayOrderNumber,
-            CustomerName = order.Customer?.FullName,
-            OrderStatus = order.OrderStatus,
+            OrderNumber = order.OrderNumber,
+            CustomerName = null,
+            OrderStatus = order.OrderStatusDisplay,
             CarrierName = order.CarrierName,
-            ProductCount = order.GetProducts().Count,
+            ProductCount = order.Products?.Count ?? 0,
             PrinterName = labelSettings.PrinterName,
             Copies = labelSettings.Copies,
             Success = false,
             PaperSize = $"{labelSettings.PaperWidthMm:F1} x {labelSettings.PaperHeightMm:F1} mm",
             PrintedBy = printedBy,
-            SnapshotJson = HistorySnapshotSerializer.Serialize(HistorySnapshotSerializer.FromOrder(order)),
+            SnapshotJson = HistorySnapshotSerializer.Serialize(HistorySnapshotSerializer.FromWarehouseLookup(order)),
         };
 
     public static string FormatCarrierDisplay(string? carrierName, string? carrierService)

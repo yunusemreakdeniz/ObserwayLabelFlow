@@ -5,12 +5,15 @@
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
              d:DesignHeight="480"
-             d:DesignWidth="900"
+             d:DesignWidth="960"
              Background="{StaticResource Bg0Brush}">
-    <Grid Margin="40,24">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
         <StackPanel VerticalAlignment="Center"
                     HorizontalAlignment="Center"
-                    MaxWidth="780">
+                    MaxWidth="980"
+                    Margin="40,24">
             <TextBlock Text="{DynamicResource Loc_ModeSelect_Title}"
                        FontSize="34"
                        FontWeight="SemiBold"
@@ -24,9 +27,9 @@
                        HorizontalAlignment="Center"
                        TextAlignment="Center" />
 
-            <UniformGrid Columns="2" Rows="1">
+            <UniformGrid Columns="3" Rows="1">
                 <Button Style="{StaticResource ModeSelectCardButton}"
-                        Margin="0,0,12,0"
+                        Margin="0,0,8,0"
                         Command="{Binding SelectProductInboundCommand}">
                     <StackPanel HorizontalAlignment="Center">
                         <Border Style="{StaticResource ModeSelectIconHost}">
@@ -35,7 +38,7 @@
                         </Border>
                         <TextBlock Margin="0,18,0,0"
                                    Text="{DynamicResource Loc_ModeSelect_ProductInboundTitle}"
-                                   FontSize="20"
+                                   FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource Text0Brush}"
                                    HorizontalAlignment="Center"
@@ -47,12 +50,38 @@
                                    TextWrapping="Wrap"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
-                                   MaxWidth="240" />
+                                   MaxWidth="220" />
                     </StackPanel>
                 </Button>
 
                 <Button Style="{StaticResource ModeSelectCardButton}"
-                        Margin="12,0,0,0"
+                        Margin="8,0"
+                        Command="{Binding SelectProductTransferCommand}">
+                    <StackPanel HorizontalAlignment="Center">
+                        <Border Style="{StaticResource ModeSelectIconHost}">
+                            <TextBlock Text="&#xE7EC;"
+                                       Style="{StaticResource ModeSelectIconGlyph}" />
+                        </Border>
+                        <TextBlock Margin="0,18,0,0"
+                                   Text="{DynamicResource Loc_ModeSelect_ProductTransferTitle}"
+                                   FontSize="18"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text0Brush}"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center" />
+                        <TextBlock Margin="0,8,0,0"
+                                   Text="{DynamicResource Loc_ModeSelect_ProductTransferDesc}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center"
+                                   TextAlignment="Center"
+                                   MaxWidth="220" />
+                    </StackPanel>
+                </Button>
+
+                <Button Style="{StaticResource ModeSelectCardButton}"
+                        Margin="8,0,0,0"
                         Command="{Binding SelectProductOutboundCommand}">
                     <StackPanel HorizontalAlignment="Center">
                         <Border Style="{StaticResource ModeSelectIconHost}">
@@ -61,7 +90,7 @@
                         </Border>
                         <TextBlock Margin="0,18,0,0"
                                    Text="{DynamicResource Loc_ModeSelect_ProductOutboundTitle}"
-                                   FontSize="20"
+                                   FontSize="18"
                                    FontWeight="SemiBold"
                                    Foreground="{StaticResource Text0Brush}"
                                    HorizontalAlignment="Center"
@@ -73,10 +102,10 @@
                                    TextWrapping="Wrap"
                                    HorizontalAlignment="Center"
                                    TextAlignment="Center"
-                                   MaxWidth="240" />
+                                   MaxWidth="220" />
                     </StackPanel>
                 </Button>
             </UniformGrid>
         </StackPanel>
-    </Grid>
+    </ScrollViewer>
 </UserControl>

@@ -65,6 +65,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private string apiBaseUrl = string.Empty;
 
     [ObservableProperty]
+    private string texasWarehouseIdText = string.Empty;
+
+    [ObservableProperty]
+    private string mexicoWarehouseIdText = string.Empty;
+
+    [ObservableProperty]
     private int barcodeTimeoutMs = 250;
 
     [ObservableProperty]
@@ -237,6 +243,8 @@ public sealed partial class SettingsViewModel : ObservableObject
                     return;
 
                 ApiBaseUrl = _configuration["Api:BaseUrl"] ?? string.Empty;
+                TexasWarehouseIdText = _configuration["Warehouse:TexasWarehouseId"] ?? string.Empty;
+                MexicoWarehouseIdText = _configuration["Warehouse:MexicoWarehouseId"] ?? string.Empty;
                 BarcodeTimeoutMs = 250;
                 SettingsLoaded = true;
             });
@@ -250,6 +258,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         ApiBaseUrl = string.IsNullOrWhiteSpace(settings.ApiBaseUrl)
             ? _configuration["Api:BaseUrl"] ?? string.Empty
             : settings.ApiBaseUrl;
+        TexasWarehouseIdText = settings.TexasWarehouseId > 0
+            ? settings.TexasWarehouseId.ToString()
+            : (_configuration["Warehouse:TexasWarehouseId"] ?? string.Empty);
+        MexicoWarehouseIdText = settings.MexicoWarehouseId > 0
+            ? settings.MexicoWarehouseId.ToString()
+            : (_configuration["Warehouse:MexicoWarehouseId"] ?? string.Empty);
         BarcodeTimeoutMs = settings.BarcodeTimeoutMs > 0 ? settings.BarcodeTimeoutMs : 250;
         SelectedBarcodeMode = settings.BarcodeMode;
 
@@ -367,6 +381,8 @@ public sealed partial class SettingsViewModel : ObservableObject
             UiCulture = _storedUiCulture,
             PrinterName = SelectedPrinterName ?? string.Empty,
             ApiBaseUrl = ApiBaseUrl?.Trim() ?? string.Empty,
+            TexasWarehouseId = long.TryParse(TexasWarehouseIdText?.Trim(), out var texasId) ? texasId : 0,
+            MexicoWarehouseId = long.TryParse(MexicoWarehouseIdText?.Trim(), out var mexicoId) ? mexicoId : 0,
             BarcodeTimeoutMs = BarcodeTimeoutMs > 0 ? BarcodeTimeoutMs : 250,
             BarcodeMode = SelectedBarcodeMode,
             AutoPrintOnQuery = AutoPrintOnQuery,
