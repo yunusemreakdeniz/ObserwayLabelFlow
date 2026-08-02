@@ -77,6 +77,7 @@ Write-Host "`n[1/3] dotnet publish..." -ForegroundColor Yellow
 dotnet publish $appProject `
     -c Release `
     -p:PublishProfile=win-x64-release `
+    -p:PublishDir="$publishDir" `
     -p:Version=$Version `
     -p:AssemblyVersion="$Version.0" `
     -p:FileVersion="$Version.0" `

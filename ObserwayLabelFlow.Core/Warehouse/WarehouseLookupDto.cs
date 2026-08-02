@@ -1,9 +1,18 @@
+using OrderStatusCode = ObserwayLabelFlow.Core.Orders.OrderStatus;
+
 namespace ObserwayLabelFlow.Core.Warehouse;
 
 public sealed class WarehouseLookupDto
 {
-    public long OrderId { get; set; }
-    public string OrderNumber { get; set; } = string.Empty;
+    public bool Matched { get; set; }
+    public long WarehouseId { get; set; }
+    public string? WarehouseCode { get; set; }
+    public string? WarehouseName { get; set; }
+    public bool ShowProductDetailsOnInbound { get; set; }
+    public bool AllowInbound { get; set; }
+    public bool AllowOutbound { get; set; }
+    public long? OrderId { get; set; }
+    public string? OrderNumber { get; set; }
     public int OrderStatus { get; set; }
     public string OrderStatusDisplay { get; set; } = string.Empty;
     public bool CanLoadToVehicle { get; set; }
@@ -18,7 +27,10 @@ public sealed class WarehouseLookupDto
     public List<WarehouseProductDto> Products { get; set; } = new();
 
     public bool IsCancelledOrReturned
-        => MatchesCancelOrReturn(OrderStatusDisplay) || MatchesCancelOrReturn(BlockReason);
+        => Matched
+           && (OrderStatus is (int)OrderStatusCode.Cancelled or (int)OrderStatusCode.Returned
+               || MatchesCancelOrReturn(OrderStatusDisplay)
+               || MatchesCancelOrReturn(BlockReason));
 
     private static bool MatchesCancelOrReturn(string? text)
     {
@@ -45,4 +57,9 @@ public sealed class WarehouseProductDto
     public string? Title { get; set; }
     public string? Sku { get; set; }
     public int Quantity { get; set; }
+    public string? ImageUrl { get; set; }
+    public double? Length { get; set; }
+    public double? Width { get; set; }
+    public double? Height { get; set; }
+    public double? Weight { get; set; }
 }

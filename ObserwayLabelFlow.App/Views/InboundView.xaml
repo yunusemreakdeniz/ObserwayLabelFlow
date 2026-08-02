@@ -140,6 +140,23 @@
                             <Border Margin="0,28,0,0"
                                     Padding="16,14"
                                     CornerRadius="{StaticResource R12}"
+                                    Background="#2A2612"
+                                    BorderBrush="#E8D087"
+                                    BorderThickness="1"
+                                    MaxWidth="520"
+                                    HorizontalAlignment="Stretch"
+                                    Visibility="{Binding IsInboundUnmatched, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                <TextBlock FontSize="14"
+                                           FontWeight="SemiBold"
+                                           Foreground="#E8D087"
+                                           TextWrapping="Wrap"
+                                           TextAlignment="Center"
+                                           Text="{DynamicResource Loc_Inbound_UnmatchedWarning}" />
+                            </Border>
+
+                            <Border Margin="0,16,0,0"
+                                    Padding="16,14"
+                                    CornerRadius="{StaticResource R12}"
                                     Background="#2A1A12"
                                     BorderBrush="#E8A87C"
                                     BorderThickness="1"

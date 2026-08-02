@@ -137,6 +137,13 @@
                                 HorizontalAlignment="Stretch"
                                 Height="40"
                                 FontSize="14"
+                                Command="{Binding ChangeWarehouseCommand}"
+                                Content="{DynamicResource Loc_ChangeWarehouse}" />
+                        <Button Margin="0,12,0,0"
+                                Style="{StaticResource ButtonGhost}"
+                                HorizontalAlignment="Stretch"
+                                Height="40"
+                                FontSize="14"
                                 Command="{Binding ChangeModeCommand}"
                                 Content="{DynamicResource Loc_ChangeMode}"
                                 Visibility="{Binding IsWorkspaceChromeVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -176,19 +183,21 @@
         </Grid>
 
         <Grid Grid.Row="1">
+            <views:WarehouseSelectView Visibility="{Binding IsWarehouseSelectVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
             <views:ModeSelectView Visibility="{Binding IsModeSelectVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <views:InboundView x:Name="InboundHost"
-                               Visibility="{Binding IsInboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                               Visibility="{Binding IsSimpleInboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <views:TransferView x:Name="TransferHost"
-                                Visibility="{Binding IsTransferVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                                Visibility="{Binding IsOutboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
             <Grid Margin="12,2,12,2"
-                  Visibility="{Binding IsOutboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                  Visibility="{Binding IsDetailedInboundVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
-                <RowDefinition Height="4" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
@@ -196,7 +205,7 @@
             <Border Grid.Row="0" Style="{StaticResource ToolbarBar}" Padding="14,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" MinWidth="140" />
+                        <ColumnDefinition Width="1.2*" MinWidth="140" />
                         <ColumnDefinition Width="12" />
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="8" />
@@ -278,6 +287,21 @@
                         </Border>
                     </StackPanel>
                 </Grid>
+            </Border>
+
+            <Border Grid.Row="1"
+                    Margin="0,8,0,0"
+                    Padding="14,10"
+                    CornerRadius="{StaticResource R12}"
+                    Background="#2A1A12"
+                    BorderBrush="#E8A87C"
+                    BorderThickness="1"
+                    Visibility="{Binding IsInboundReturnProduct, Converter={StaticResource BooleanToVisibilityConverter}}">
+                <TextBlock Text="{DynamicResource Loc_Inbound_ReturnProduct}"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           Foreground="#E8A87C"
+                           TextAlignment="Center" />
             </Border>
 
             <TabControl Grid.Row="2"

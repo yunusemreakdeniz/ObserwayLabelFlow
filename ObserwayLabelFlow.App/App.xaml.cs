@@ -64,7 +64,7 @@ public partial class App : Application
                     var allowInvalidCerts = bool.TryParse(ctx.Configuration["Api:AllowInvalidCerts"], out var b) && b;
 
                     services.AddSingleton<IApiBaseUrlProvider, AppApiBaseUrlProvider>();
-                    services.AddSingleton<IWarehouseIdsProvider, WarehouseIdsProvider>();
+                    services.AddSingleton<IWarehouseSession, WarehouseSession>();
                     services.AddSingleton<IHistoryExportService, HistoryExcelExportService>();
                     services.AddSingleton<IToastService, ToastService>();
                     services.AddSingleton<IAppDialogService, AppDialogService>();
@@ -173,7 +173,6 @@ public partial class App : Application
             await localization.InitializeAsync();
             FieldLabelAssist.EnsureCultureHook(localization);
             await Services.GetRequiredService<IApiBaseUrlProvider>().ReloadAsync();
-            await Services.GetRequiredService<IWarehouseIdsProvider>().ReloadAsync();
 
             LoginWindow login;
             try

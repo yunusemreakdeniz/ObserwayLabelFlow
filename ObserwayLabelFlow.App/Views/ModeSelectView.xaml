@@ -20,16 +20,26 @@
                        Foreground="{StaticResource Text0Brush}"
                        HorizontalAlignment="Center"
                        TextAlignment="Center" />
-            <TextBlock Margin="0,10,0,36"
+            <TextBlock Margin="0,10,0,8"
                        Text="{DynamicResource Loc_ModeSelect_Subtitle}"
                        FontSize="15"
                        Foreground="{StaticResource Text1Brush}"
                        HorizontalAlignment="Center"
                        TextAlignment="Center" />
+            <TextBlock Margin="0,0,0,28"
+                       FontSize="14"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource AccentBrush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       Text="{Binding SelectedWarehouseDisplayName}"
+                       Visibility="{Binding SelectedWarehouseDisplayName, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
 
-            <UniformGrid Columns="3" Rows="1">
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                 <Button Style="{StaticResource ModeSelectCardButton}"
                         Margin="0,0,8,0"
+                        Width="260"
+                        Visibility="{Binding CanSelectInbound, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Command="{Binding SelectProductInboundCommand}">
                     <StackPanel HorizontalAlignment="Center">
                         <Border Style="{StaticResource ModeSelectIconHost}">
@@ -55,33 +65,9 @@
                 </Button>
 
                 <Button Style="{StaticResource ModeSelectCardButton}"
-                        Margin="8,0"
-                        Command="{Binding SelectProductTransferCommand}">
-                    <StackPanel HorizontalAlignment="Center">
-                        <Border Style="{StaticResource ModeSelectIconHost}">
-                            <TextBlock Text="&#xE7EC;"
-                                       Style="{StaticResource ModeSelectIconGlyph}" />
-                        </Border>
-                        <TextBlock Margin="0,18,0,0"
-                                   Text="{DynamicResource Loc_ModeSelect_ProductTransferTitle}"
-                                   FontSize="18"
-                                   FontWeight="SemiBold"
-                                   Foreground="{StaticResource Text0Brush}"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center" />
-                        <TextBlock Margin="0,8,0,0"
-                                   Text="{DynamicResource Loc_ModeSelect_ProductTransferDesc}"
-                                   FontSize="13"
-                                   Foreground="{StaticResource Text1Brush}"
-                                   TextWrapping="Wrap"
-                                   HorizontalAlignment="Center"
-                                   TextAlignment="Center"
-                                   MaxWidth="220" />
-                    </StackPanel>
-                </Button>
-
-                <Button Style="{StaticResource ModeSelectCardButton}"
                         Margin="8,0,0,0"
+                        Width="260"
+                        Visibility="{Binding CanSelectOutbound, Converter={StaticResource BooleanToVisibilityConverter}}"
                         Command="{Binding SelectProductOutboundCommand}">
                     <StackPanel HorizontalAlignment="Center">
                         <Border Style="{StaticResource ModeSelectIconHost}">
@@ -105,7 +91,15 @@
                                    MaxWidth="220" />
                     </StackPanel>
                 </Button>
-            </UniformGrid>
+            </StackPanel>
+
+            <Button Margin="0,32,0,0"
+                    Style="{StaticResource ButtonGhost}"
+                    Height="44"
+                    MinWidth="180"
+                    HorizontalAlignment="Center"
+                    Content="{DynamicResource Loc_ChangeWarehouse}"
+                    Command="{Binding ChangeWarehouseCommand}" />
         </StackPanel>
     </ScrollViewer>
 </UserControl>

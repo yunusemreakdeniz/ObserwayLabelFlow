@@ -21,10 +21,11 @@ public sealed partial class MainViewModel : ObservableObject
     private readonly IInboundHistoryService _inboundHistory;
     private readonly ILocalizationService _localization;
     private readonly IWarehouseApiClient _warehouseApiClient;
-    private readonly IWarehouseIdsProvider _warehouseIds;
+    private readonly IWarehouseSession _warehouseSession;
     private readonly IUserSettingsStore _userSettings;
     private readonly IApiBaseUrlProvider _apiBaseUrl;
     private readonly IAppDialogService _dialogs;
+    private readonly IToastService _toasts;
     private readonly IHistoryExportService _historyExport;
     private readonly ILogger<MainViewModel> _logger;
 
@@ -36,7 +37,10 @@ public sealed partial class MainViewModel : ObservableObject
     private PrintHistoryEntry? _lastHistoryEntry;
     private PrintHistoryEntry? _historyContextEntry;
     private string? _historyContextCellValue;
-    private long? _pendingOutboundOrderId;
+    private long? _pendingWorkspaceOrderId;
+    private string? _pendingWorkspaceReference;
+    private int? _displayedOutboundOrderStatus;
+    private int? _displayedInboundOrderStatus;
 
     public PrintHistoryEntry? HistoryContextEntry => _historyContextEntry;
 
@@ -46,10 +50,11 @@ public sealed partial class MainViewModel : ObservableObject
         IInboundHistoryService inboundHistory,
         ILocalizationService localization,
         IWarehouseApiClient warehouseApiClient,
-        IWarehouseIdsProvider warehouseIds,
+        IWarehouseSession warehouseSession,
         IUserSettingsStore userSettings,
         IApiBaseUrlProvider apiBaseUrl,
         IAppDialogService dialogs,
+        IToastService toasts,
         IHistoryExportService historyExport,
         ILogger<MainViewModel> logger)
     {
@@ -58,10 +63,12 @@ public sealed partial class MainViewModel : ObservableObject
         _inboundHistory = inboundHistory;
         _localization = localization;
         _warehouseApiClient = warehouseApiClient;
-        _warehouseIds = warehouseIds;
+        _warehouseSession = warehouseSession;
+        _warehouseSession.Changed += OnWarehouseSessionChanged;
         _userSettings = userSettings;
         _apiBaseUrl = apiBaseUrl;
         _dialogs = dialogs;
+        _toasts = toasts;
         _historyExport = historyExport;
         _logger = logger;
         ProductSummary = _localization.Get("ProductSummaryHint");
@@ -108,31 +115,71 @@ public sealed partial class MainViewModel : ObservableObject
             ProductSummary = _localization.Get("ProductSummaryAfterQuery", _lastQueriedTracking);
         else if (_productSummaryIsDefaultHint)
             ProductSummary = _localization.Get("ProductSummaryHint");
+        RefreshLocalizedOrderStatusDisplays();
         RefreshInboundHistoryDayLabel();
         RefreshHistoryDayLabel();
     }
+
+    private void RefreshLocalizedOrderStatusDisplays()
+    {
+        if (_displayedOutboundOrderStatus is int outboundStatus)
+            CurrentOrderStatus = OrderStatusLocalizer.GetDisplay(_localization, outboundStatus);
+
+        if (_displayedInboundOrderStatus is int inboundStatus)
+            InboundOrderStatusDisplay = OrderStatusLocalizer.GetDisplay(_localization, inboundStatus);
+
+    }
+
+    private void OnWarehouseSessionChanged(object? sender, EventArgs e)
+        => RefreshWarehouseUiState();
 
     public event Action? LogoutRequested;
     public event Action? PrintRequested;
 
     [ObservableProperty]
-    private AppWorkspaceMode currentMode = AppWorkspaceMode.ModeSelect;
+    private AppWorkspaceMode currentMode = AppWorkspaceMode.WarehouseSelect;
 
+    public bool IsWarehouseSelectVisible => CurrentMode == AppWorkspaceMode.WarehouseSelect;
     public bool IsModeSelectVisible => CurrentMode == AppWorkspaceMode.ModeSelect;
-    public bool IsInboundVisible => CurrentMode == AppWorkspaceMode.Inbound;
-    public bool IsTransferVisible => CurrentMode == AppWorkspaceMode.Transfer;
+    public bool ShowProductDetailsOnInbound => _warehouseSession.ShowProductDetailsOnInbound;
+    public bool IsSimpleInboundVisible => CurrentMode == AppWorkspaceMode.Inbound && !ShowProductDetailsOnInbound;
+    public bool IsDetailedInboundVisible => CurrentMode == AppWorkspaceMode.Inbound && ShowProductDetailsOnInbound;
+    public bool IsInboundVisible => IsSimpleInboundVisible;
     public bool IsOutboundVisible => CurrentMode == AppWorkspaceMode.Outbound;
-    public bool IsWorkspaceChromeVisible => CurrentMode != AppWorkspaceMode.ModeSelect;
+    /// <summary>Detaylı ürün+etiket yalnız girişte (showProductDetailsOnInbound).</summary>
+    public bool IsDetailedWorkspaceVisible => IsDetailedInboundVisible;
+    public bool IsWorkspaceChromeVisible => CurrentMode is AppWorkspaceMode.Inbound
+        or AppWorkspaceMode.Outbound;
 
     partial void OnCurrentModeChanged(AppWorkspaceMode value)
     {
+        OnPropertyChanged(nameof(IsWarehouseSelectVisible));
         OnPropertyChanged(nameof(IsModeSelectVisible));
+        OnPropertyChanged(nameof(IsSimpleInboundVisible));
+        OnPropertyChanged(nameof(IsDetailedInboundVisible));
         OnPropertyChanged(nameof(IsInboundVisible));
-        OnPropertyChanged(nameof(IsTransferVisible));
         OnPropertyChanged(nameof(IsOutboundVisible));
+        OnPropertyChanged(nameof(IsDetailedWorkspaceVisible));
         OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
         IsUserMenuOpen = false;
     }
+
+    public ObservableCollection<WarehouseDto> AvailableWarehouses { get; } = new();
+
+    [ObservableProperty]
+    private string warehouseSelectStatusMessage = string.Empty;
+
+    [ObservableProperty]
+    private string selectedWarehouseDisplayName = string.Empty;
+
+    [ObservableProperty]
+    private bool canSelectInbound;
+
+    [ObservableProperty]
+    private bool canSelectOutbound;
+
+    [ObservableProperty]
+    private bool isInboundUnmatched;
 
     [ObservableProperty]
     private string userDisplayName = string.Empty;
@@ -178,6 +225,8 @@ public sealed partial class MainViewModel : ObservableObject
         {
             IsObsMatched = false;
             IsInboundReturnProduct = false;
+            IsInboundUnmatched = false;
+            _displayedInboundOrderStatus = null;
             InboundOrderStatusDisplay = string.Empty;
         }
 
@@ -259,6 +308,7 @@ public sealed partial class MainViewModel : ObservableObject
         ClearOperationCommand.NotifyCanExecuteChanged();
         LookupInboundCommand.NotifyCanExecuteChanged();
         ClearInboundCommand.NotifyCanExecuteChanged();
+        NotifyTransferCommands();
     }
 
     [ObservableProperty]
@@ -346,14 +396,69 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         await LoadSettingsAsync(ct);
+        await EnsureWarehouseSessionAsync(ct);
         await RefreshHistoryAsync(ct);
         await RefreshInboundHistoryAsync(ct);
     }
 
     public async Task ReloadSettingsFromStoreAsync(CancellationToken ct = default)
     {
-        await _warehouseIds.ReloadAsync(ct);
         await LoadSettingsAsync(ct);
+    }
+
+    private async Task EnsureWarehouseSessionAsync(CancellationToken ct = default)
+    {
+        await _warehouseSession.ReloadAvailableAsync(ct);
+        AvailableWarehouses.Clear();
+        foreach (var warehouse in _warehouseSession.Available)
+            AvailableWarehouses.Add(warehouse);
+
+        RefreshWarehouseUiState();
+        CurrentMode = _warehouseSession.HasSelection
+            ? AppWorkspaceMode.ModeSelect
+            : AppWorkspaceMode.WarehouseSelect;
+
+        WarehouseSelectStatusMessage = AvailableWarehouses.Count == 0
+            ? _localization.Get("Warehouse_NoneAssigned")
+            : string.Empty;
+    }
+
+    private void RefreshWarehouseUiState()
+    {
+        SelectedWarehouseDisplayName = _warehouseSession.SelectedDisplayName;
+        CanSelectInbound = _warehouseSession.HasSelection && _warehouseSession.AllowInbound;
+        CanSelectOutbound = _warehouseSession.HasSelection && _warehouseSession.AllowOutbound;
+        OnPropertyChanged(nameof(ShowProductDetailsOnInbound));
+        OnPropertyChanged(nameof(IsSimpleInboundVisible));
+        OnPropertyChanged(nameof(IsDetailedInboundVisible));
+        OnPropertyChanged(nameof(IsInboundVisible));
+        OnPropertyChanged(nameof(IsOutboundVisible));
+        OnPropertyChanged(nameof(IsDetailedWorkspaceVisible));
+        OnPropertyChanged(nameof(IsWorkspaceChromeVisible));
+    }
+
+    [RelayCommand]
+    private async Task ReloadWarehousesAsync()
+        => await EnsureWarehouseSessionAsync();
+
+    [RelayCommand]
+    private async Task SelectWarehouseAsync(WarehouseDto? warehouse)
+    {
+        if (warehouse is null)
+            return;
+
+        await _warehouseSession.SelectAsync(warehouse);
+        RefreshWarehouseUiState();
+        CurrentMode = AppWorkspaceMode.ModeSelect;
+    }
+
+    [RelayCommand]
+    private async Task ChangeWarehouseAsync()
+    {
+        IsUserMenuOpen = false;
+        await _warehouseSession.ClearSelectionAsync();
+        CurrentMode = AppWorkspaceMode.WarehouseSelect;
+        await EnsureWarehouseSessionAsync();
     }
 
     private async Task LoadSettingsAsync(CancellationToken ct)
@@ -444,8 +549,13 @@ public sealed partial class MainViewModel : ObservableObject
     [RelayCommand]
     public async Task<bool> QueryAsync()
     {
+        // Detaylı etiket/ürün workspace yalnızca ürün girişinde kullanılır.
+        if (!IsDetailedInboundVisible)
+            return false;
+
         if (string.IsNullOrWhiteSpace(TrackingNumber))
         {
+            IsInboundReturnProduct = false;
             ProductSummary = _localization.Get("ProductSummaryEmptyTracking");
             _productSummaryIsDefaultHint = false;
             ClearCurrentOrderInfo();
@@ -455,7 +565,11 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         IsBusy = true;
+        IsInboundReturnProduct = false;
         SelectedTabIndex = 0;
+        _lastHistoryEntry = null;
+        _pendingWorkspaceOrderId = null;
+        _pendingWorkspaceReference = null;
         try
         {
             var tn = TrackingNumber.Trim();
@@ -463,7 +577,23 @@ public sealed partial class MainViewModel : ObservableObject
             DisplayedTrackingNumber = tn;
             _productSummaryIsDefaultHint = false;
 
-            var result = await _warehouseApiClient.LookupAsync(tn, CancellationToken.None);
+            var warehouseId = _warehouseSession.SelectedWarehouseId;
+            if (warehouseId <= 0)
+            {
+                var notSelected = _localization.Get("Warehouse_NotSelected");
+                ProductItems.Clear();
+                ProductSummary = notSelected;
+                ClearCurrentOrderInfo();
+                LastQueryFailedMessage = notSelected;
+                LastQuerySucceeded = false;
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("Query_NotFoundTitle"),
+                    notSelected);
+                return false;
+            }
+
+            var result = await _warehouseApiClient.LookupAsync(tn, warehouseId, CancellationToken.None);
             if (!result.IsSuccess || result.Value is null)
             {
                 ProductItems.Clear();
@@ -480,24 +610,56 @@ public sealed partial class MainViewModel : ObservableObject
 
             LastQuerySucceeded = true;
             LastQueryFailedMessage = null;
-            HasActiveOrder = true;
-
             var order = result.Value;
+            IsInboundReturnProduct = order.Matched && order.IsCancelledOrReturned;
+
+            if (!order.Matched)
+            {
+                HasActiveOrder = true;
+                ProductSummary = _localization.Get("ProductSummaryAfterQuery", tn);
+                ClearCurrentOrderInfo();
+                HasActiveOrder = true;
+                DisplayedTrackingNumber = tn;
+                ProductItems.Clear();
+                ProductItems.Add(new ProductPreviewItem
+                {
+                    OfficialName = _localization.Get("ProductSummaryEmptyProducts")
+                });
+                ProductItemCount = 0;
+                _pendingWorkspaceOrderId = null;
+                _pendingWorkspaceReference = null;
+
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    _localization.Get("Inbound_UnmatchedWarning"));
+                return await PostDetailedInboundAsync(order, tn, warehouseId);
+            }
+
+            HasActiveOrder = true;
             ApplyWarehouseLookupToUi(order, tn);
 
-            var labelSettings = _currentSettings?.LabelPrintSettings ?? new LabelPrintSettings();
-            _lastHistoryEntry = OrderPresentationMapper.CreateHistoryEntry(
-                order,
-                tn,
-                labelSettings,
-                _welcomeDisplayName,
-                _localization.Get("HistoryNotesSample"));
+            if (!await PostDetailedInboundAsync(order, tn, warehouseId))
+                return false;
 
-            await _history.AddAsync(_lastHistoryEntry, CancellationToken.None);
-            if (HistoryDay.Date != DateTime.Today)
-                HistoryDay = DateTime.Today;
-            else
-                await RefreshHistoryAsync(CancellationToken.None);
+            if (PdfSource is not null)
+            {
+                var labelSettings = _currentSettings?.LabelPrintSettings ?? new LabelPrintSettings();
+                _lastHistoryEntry = OrderPresentationMapper.CreateHistoryEntry(
+                    order,
+                    tn,
+                    labelSettings,
+                    _welcomeDisplayName,
+                    _localization.Get("HistoryNotesSample"),
+                    _localization);
+
+                await _history.AddAsync(_lastHistoryEntry, CancellationToken.None);
+                if (HistoryDay.Date != DateTime.Today)
+                    HistoryDay = DateTime.Today;
+                else
+                    await RefreshHistoryAsync(CancellationToken.None);
+            }
+
             return true;
         }
         catch (Exception ex)
@@ -515,6 +677,43 @@ public sealed partial class MainViewModel : ObservableObject
         {
             IsBusy = false;
         }
+    }
+
+    private async Task<bool> PostDetailedInboundAsync(WarehouseLookupDto order, string reference, long warehouseId)
+    {
+        var post = await _warehouseApiClient.PostInboundAsync(
+            new WarehouseInboundRequest(
+                warehouseId,
+                reference,
+                order.Matched ? order.OrderId : null,
+                InboundTrackingNumber: reference),
+            CancellationToken.None);
+        if (!post.IsSuccess || post.Value is null)
+        {
+            var error = post.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+            ProductSummary = error;
+            LastQueryFailedMessage = error;
+            LastQuerySucceeded = false;
+            await SaveInboundHistoryAsync(reference, order.OrderNumber, false, error);
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                error);
+            return false;
+        }
+
+        var orderNumber = post.Value.OrderNumber ?? order.OrderNumber;
+        var message = order.Matched
+            ? order.IsCancelledOrReturned
+                ? _localization.Get("Inbound_ReturnProductMarked", orderNumber)
+                : _localization.Get("Inbound_MarkedSuccess", orderNumber)
+            : _localization.Get("Inbound_UnmatchedSaved", reference);
+        await SaveInboundHistoryAsync(reference, post.Value.OrderNumber ?? order.OrderNumber, true, null);
+        _dialogs.Show(
+            order.IsCancelledOrReturned ? AppDialogKind.Warning : AppDialogKind.Info,
+            _localization.Get("ModeSelect_ProductInboundTitle"),
+            message);
+        return true;
     }
 
     [ObservableProperty]
@@ -714,63 +913,52 @@ public sealed partial class MainViewModel : ObservableObject
             }
         }
 
-        if (success)
-            await MarkOutboundReadyAfterPrintAsync();
-    }
-
-    private async Task MarkOutboundReadyAfterPrintAsync()
-    {
-        var orderId = _pendingOutboundOrderId;
-        if (orderId is null or <= 0)
+        if (!success)
             return;
 
-        var warehouseId = _warehouseIds.GetMexicoWarehouseId();
+        // Detaylı girişte kayıt genelde sorguda atılır; pending varsa yazdırma sonrası tamamlanır.
+        if (IsDetailedInboundVisible)
+            await MarkInboundReadyAfterPrintAsync();
+    }
+
+    private async Task MarkInboundReadyAfterPrintAsync()
+    {
+        var reference = _pendingWorkspaceReference;
+        if (string.IsNullOrWhiteSpace(reference))
+            return;
+
+        var warehouseId = _warehouseSession.SelectedWarehouseId;
         if (warehouseId <= 0)
         {
             _dialogs.Show(
                 AppDialogKind.Warning,
-                _localization.Get("ModeSelect_ProductOutboundTitle"),
-                _localization.Get("Warehouse_MexicoIdMissing"));
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                _localization.Get("Warehouse_NotSelected"));
             return;
         }
 
-        while (true)
+        var result = await _warehouseApiClient.PostInboundAsync(
+            new WarehouseInboundRequest(
+                warehouseId,
+                reference,
+                _pendingWorkspaceOrderId,
+                InboundTrackingNumber: reference),
+            CancellationToken.None);
+        if (!result.IsSuccess || result.Value is null)
         {
-            try
-            {
-                var result = await _warehouseApiClient.MarkOutboundReadyAsync(
-                    orderId.Value,
-                    new WarehouseOutboundRequest(warehouseId),
-                    CancellationToken.None);
-                if (result.IsSuccess)
-                {
-                    _dialogs.Show(
-                        AppDialogKind.Info,
-                        _localization.Get("ModeSelect_ProductOutboundTitle"),
-                        _localization.Get("Outbound_MarkedSuccess"));
-                    return;
-                }
-
-                var errorText = result.Errors.Count > 0
-                    ? string.Join("\n", result.Errors)
-                    : _localization.Get("Error_Connection");
-
-                var retry = _dialogs.Confirm(
-                    _localization.Get("Outbound_MarkFailedTitle"),
-                    _localization.Get("Outbound_MarkFailedRetry", errorText));
-                if (!retry)
-                    return;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogWarning(ex, "Çıkışa hazır işaretleme başarısız. OrderId={OrderId}", orderId);
-                var retry = _dialogs.Confirm(
-                    _localization.Get("Outbound_MarkFailedTitle"),
-                    _localization.Get("Outbound_MarkFailedRetry", _localization.Get("Error_Connection")));
-                if (!retry)
-                    return;
-            }
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection"));
+            return;
         }
+
+        _pendingWorkspaceOrderId = null;
+        _pendingWorkspaceReference = null;
+        _dialogs.Show(
+            AppDialogKind.Info,
+            _localization.Get("ModeSelect_ProductInboundTitle"),
+            _localization.Get("Inbound_MarkedSuccess", result.Value.OrderNumber));
     }
 
     [RelayCommand(CanExecute = nameof(CanQueryAndPrint))]
@@ -782,7 +970,9 @@ public sealed partial class MainViewModel : ObservableObject
         return ok;
     }
 
-    private bool CanQueryAndPrint() => !IsBusy && !string.IsNullOrWhiteSpace(TrackingNumber);
+    private bool CanQueryAndPrint()
+        => !IsBusy
+           && !string.IsNullOrWhiteSpace(TrackingNumber);
 
     [RelayCommand(CanExecute = nameof(CanPrintLabel))]
     private void PrintLabel() => RequestPrint();
@@ -804,11 +994,13 @@ public sealed partial class MainViewModel : ObservableObject
     private void ClearOperation()
     {
         TrackingNumber = string.Empty;
+        _lastHistoryEntry = null;
         _lastQueriedTracking = null;
         _productSummaryIsDefaultHint = true;
         ProductSummary = _localization.Get("ProductSummaryHint");
         ProductItems.Clear();
         ClearCurrentOrderInfo();
+        IsInboundReturnProduct = false;
         LastQuerySucceeded = false;
         LastQueryFailedMessage = null;
     }
@@ -825,15 +1017,16 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentAmazonOrderId = string.Empty;
         CurrentCustomerName = string.Empty;
         CurrentCarrierName = OrderPresentationMapper.FormatCarrierDisplay(order.CarrierName, order.CarrierCode);
-        CurrentOrderStatus = order.OrderStatusDisplay ?? string.Empty;
+        _displayedOutboundOrderStatus = order.OrderStatus;
+        CurrentOrderStatus = OrderStatusLocalizer.GetDisplay(_localization, order);
 
         PdfSource = OrderPresentationMapper.TryCreateLabelUri(order.LabelUrl, _apiBaseUrl.GetBaseUrl());
-        _pendingOutboundOrderId = PdfSource is not null ? order.OrderId : null;
 
         ProductItems.Clear();
         var products = order.Products ?? [];
+        var apiBaseUrl = _apiBaseUrl.GetBaseUrl();
         foreach (var product in products)
-            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product));
+            ProductItems.Add(OrderPresentationMapper.ToProductPreviewItem(product, apiBaseUrl));
 
         ProductItemCount = products.Count;
         if (products.Count == 0)
@@ -853,20 +1046,30 @@ public sealed partial class MainViewModel : ObservableObject
         CurrentAmazonOrderId = string.Empty;
         CurrentCustomerName = string.Empty;
         CurrentCarrierName = string.Empty;
+        _displayedOutboundOrderStatus = null;
         CurrentOrderStatus = string.Empty;
         DisplayedTrackingNumber = string.Empty;
         LabelReady = false;
         HasActiveOrder = false;
         ProductItemCount = 0;
         ProductItems.Clear();
-        _pendingOutboundOrderId = null;
+        _pendingWorkspaceOrderId = null;
+        _pendingWorkspaceReference = null;
     }
 
     [RelayCommand]
     private void SelectProductInbound()
     {
+        if (!_warehouseSession.AllowInbound)
+            return;
+
         IsUserMenuOpen = false;
         ClearInboundState();
+        if (ShowProductDetailsOnInbound)
+        {
+            ClearOperation();
+            SelectedTabIndex = 0;
+        }
         InboundSelectedTabIndex = 0;
         InboundHistoryDay = DateTime.Today;
         CurrentMode = AppWorkspaceMode.Inbound;
@@ -874,21 +1077,14 @@ public sealed partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
-    private void SelectProductTransfer()
-    {
-        IsUserMenuOpen = false;
-        ClearTransferState();
-        CurrentMode = AppWorkspaceMode.Transfer;
-    }
-
-    [RelayCommand]
     private void SelectProductOutbound()
     {
+        if (!_warehouseSession.AllowOutbound)
+            return;
+
         IsUserMenuOpen = false;
-        SelectedTabIndex = 0;
-        HistoryDay = DateTime.Today;
+        ClearTransferState();
         CurrentMode = AppWorkspaceMode.Outbound;
-        _ = RefreshHistoryAsync();
     }
 
     [RelayCommand]
@@ -1037,14 +1233,16 @@ public sealed partial class MainViewModel : ObservableObject
         IsBusy = true;
         IsObsMatched = false;
         IsInboundReturnProduct = false;
+        IsInboundUnmatched = false;
         InboundStatusMessage = string.Empty;
+        _displayedInboundOrderStatus = null;
         InboundOrderStatusDisplay = string.Empty;
         try
         {
-            var warehouseId = _warehouseIds.GetTexasWarehouseId();
+            var warehouseId = _warehouseSession.SelectedWarehouseId;
             if (warehouseId <= 0)
             {
-                InboundStatusMessage = _localization.Get("Warehouse_TexasIdMissing");
+                InboundStatusMessage = _localization.Get("Warehouse_NotSelected");
                 await SaveInboundHistoryAsync(query, null, false, InboundStatusMessage);
                 _dialogs.Show(
                     AppDialogKind.Warning,
@@ -1053,7 +1251,7 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var lookup = await _warehouseApiClient.LookupAsync(query);
+            var lookup = await _warehouseApiClient.LookupAsync(query, warehouseId);
             if (!lookup.IsSuccess || lookup.Value is null)
             {
                 InboundStatusMessage = lookup.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
@@ -1066,15 +1264,29 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             var order = lookup.Value;
-            InboundOrderStatusDisplay = order.OrderStatusDisplay ?? string.Empty;
-            IsInboundReturnProduct = order.IsCancelledOrReturned;
-
-            var mark = await _warehouseApiClient.MarkInboundReceivedAsync(
-                order.OrderId,
-                new WarehouseInboundRequest(warehouseId, InboundTrackingNumber: query));
-            if (!mark.IsSuccess || mark.Value is null)
+            IsInboundUnmatched = !order.Matched;
+            if (order.Matched)
             {
-                InboundStatusMessage = mark.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
+                _displayedInboundOrderStatus = order.OrderStatus;
+                InboundOrderStatusDisplay = OrderStatusLocalizer.GetDisplay(_localization, order);
+                IsInboundReturnProduct = order.IsCancelledOrReturned;
+            }
+            else
+            {
+                _displayedInboundOrderStatus = null;
+                InboundOrderStatusDisplay = string.Empty;
+                IsInboundReturnProduct = false;
+            }
+
+            var post = await _warehouseApiClient.PostInboundAsync(
+                new WarehouseInboundRequest(
+                    warehouseId,
+                    query,
+                    order.Matched ? order.OrderId : null,
+                    InboundTrackingNumber: query));
+            if (!post.IsSuccess || post.Value is null)
+            {
+                InboundStatusMessage = post.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
                 await SaveInboundHistoryAsync(query, order.OrderNumber, false, InboundStatusMessage);
                 _dialogs.Show(
                     AppDialogKind.Warning,
@@ -1083,12 +1295,20 @@ public sealed partial class MainViewModel : ObservableObject
                 return;
             }
 
-            var orderNumber = mark.Value.OrderNumber;
             IsObsMatched = true;
-            InboundStatusMessage = IsInboundReturnProduct
-                ? _localization.Get("Inbound_ReturnProductMarked", orderNumber)
-                : _localization.Get("Inbound_MarkedSuccess", orderNumber);
-            await SaveInboundHistoryAsync(query, orderNumber, true, null);
+            if (order.Matched)
+            {
+                var orderNumber = post.Value.OrderNumber ?? order.OrderNumber;
+                InboundStatusMessage = IsInboundReturnProduct
+                    ? _localization.Get("Inbound_ReturnProductMarked", orderNumber)
+                    : _localization.Get("Inbound_MarkedSuccess", orderNumber);
+            }
+            else
+            {
+                InboundStatusMessage = _localization.Get("Inbound_UnmatchedSaved", query);
+            }
+
+            await SaveInboundHistoryAsync(query, post.Value.OrderNumber ?? order.OrderNumber, true, null);
             _dialogs.Show(
                 IsInboundReturnProduct ? AppDialogKind.Warning : AppDialogKind.Info,
                 _localization.Get("ModeSelect_ProductInboundTitle"),
@@ -1133,6 +1353,7 @@ public sealed partial class MainViewModel : ObservableObject
            && (!string.IsNullOrWhiteSpace(InboundQuery)
                || IsObsMatched
                || IsInboundReturnProduct
+               || IsInboundUnmatched
                || !string.IsNullOrWhiteSpace(InboundStatusMessage));
 
     private void ClearInboundState()
@@ -1140,7 +1361,9 @@ public sealed partial class MainViewModel : ObservableObject
         InboundQuery = string.Empty;
         IsObsMatched = false;
         IsInboundReturnProduct = false;
+        IsInboundUnmatched = false;
         InboundStatusMessage = string.Empty;
+        _displayedInboundOrderStatus = null;
         InboundOrderStatusDisplay = string.Empty;
         ClearInboundCommand.NotifyCanExecuteChanged();
         LookupInboundCommand.NotifyCanExecuteChanged();
@@ -1179,12 +1402,13 @@ public sealed partial class MainViewModel : ObservableObject
         if (!_suppressTransferMatchReset)
         {
             IsTransferSuccess = false;
+            IsTransferBlocked = false;
+            CanTransferLoad = false;
             TransferLookupOrderId = null;
+            _transferLookupMatched = false;
         }
 
-        LookupTransferCommand.NotifyCanExecuteChanged();
-        LoadToVehicleCommand.NotifyCanExecuteChanged();
-        ClearTransferCommand.NotifyCanExecuteChanged();
+        NotifyTransferCommands();
     }
 
     [ObservableProperty]
@@ -1201,8 +1425,7 @@ public sealed partial class MainViewModel : ObservableObject
                 TransferVehicleName = cleaned;
         }
 
-        LoadToVehicleCommand.NotifyCanExecuteChanged();
-        ClearTransferCommand.NotifyCanExecuteChanged();
+        NotifyTransferCommands();
     }
 
     [ObservableProperty]
@@ -1224,6 +1447,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool canTransferLoad;
 
     private long? TransferLookupOrderId { get; set; }
+    private bool _transferLookupMatched;
 
     [RelayCommand(CanExecute = nameof(CanLookupTransfer))]
     private async Task LookupTransferAsync()
@@ -1240,63 +1464,63 @@ public sealed partial class MainViewModel : ObservableObject
         TransferOrderStatusDisplay = string.Empty;
         TransferBlockReason = string.Empty;
         TransferLookupOrderId = null;
+        _transferLookupMatched = false;
         try
         {
-            var lookup = await _warehouseApiClient.LookupAsync(query);
+            var warehouseId = _warehouseSession.SelectedWarehouseId;
+            if (warehouseId <= 0)
+            {
+                TransferStatusMessage = _localization.Get("Warehouse_NotSelected");
+                _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
+                return;
+            }
+
+            var lookup = await _warehouseApiClient.LookupAsync(query, warehouseId);
             if (!lookup.IsSuccess || lookup.Value is null)
             {
                 TransferStatusMessage = lookup.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
-                _dialogs.Show(
-                    AppDialogKind.Warning,
-                    _localization.Get("ModeSelect_ProductTransferTitle"),
-                    TransferStatusMessage);
+                _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
                 return;
             }
 
             var order = lookup.Value;
-            TransferLookupOrderId = order.OrderId;
-            TransferOrderStatusDisplay = order.OrderStatusDisplay ?? string.Empty;
+            _transferLookupMatched = order.Matched;
+            TransferLookupOrderId = order.Matched ? order.OrderId : null;
+            TransferOrderStatusDisplay = order.Matched
+                ? OrderStatusLocalizer.GetDisplay(_localization, order)
+                : string.Empty;
 
-            if (!order.CanLoadToVehicle)
+            if (order.Matched && order.IsCancelledOrReturned)
             {
                 IsTransferBlocked = true;
-                CanTransferLoad = false;
                 TransferBlockReason = string.IsNullOrWhiteSpace(order.BlockReason)
-                    ? (order.IsCancelledOrReturned
-                        ? _localization.Get("Transfer_ReturnOrCancelled")
-                        : _localization.Get("Transfer_CannotLoad"))
+                    ? _localization.Get("Transfer_ReturnOrCancelled")
                     : order.BlockReason!;
                 TransferStatusMessage = TransferBlockReason;
-                _dialogs.Show(
-                    AppDialogKind.Warning,
-                    _localization.Get("ModeSelect_ProductTransferTitle"),
-                    TransferStatusMessage);
+                _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
                 return;
             }
 
-            if (order.AlreadyLoadedToVehicle)
+            if (!order.Matched)
             {
-                TransferStatusMessage = _localization.Get(
-                    "Transfer_AlreadyLoaded",
-                    order.LastVehicleName ?? "—");
+                TransferStatusMessage = _localization.Get("Outbound_UnmatchedWarning");
+                _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
+            }
+            else
+            {
+                TransferStatusMessage = _localization.Get("Transfer_ReadyToLoad", order.OrderNumber ?? query);
             }
 
             CanTransferLoad = true;
-            TransferStatusMessage = string.IsNullOrWhiteSpace(TransferStatusMessage)
-                ? _localization.Get("Transfer_ReadyToLoad", order.OrderNumber)
-                : TransferStatusMessage;
 
             if (!string.IsNullOrWhiteSpace(TransferVehicleName))
-                await LoadToVehicleCoreAsync(order.OrderId, query);
+                await ConfirmOutboundCoreAsync(query);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Transfer lookup başarısız.");
+            _logger.LogWarning(ex, "Ürün çıkış lookup başarısız.");
             TransferStatusMessage = _localization.Get("Error_Connection");
-            _dialogs.Show(
-                AppDialogKind.Error,
-                _localization.Get("ModeSelect_ProductTransferTitle"),
-                TransferStatusMessage);
+            _dialogs.Show(AppDialogKind.Error, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
         }
         finally
         {
@@ -1308,10 +1532,14 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanLookupTransfer()
         => !IsBusy && !string.IsNullOrWhiteSpace(TransferQuery);
 
-    [RelayCommand(CanExecute = nameof(CanLoadToVehicle))]
+    /// <summary>Ürün çıkış onayı — araç adı + takip ile POST /outbound.</summary>
+    [RelayCommand(CanExecute = nameof(CanConfirmOutbound))]
     private async Task LoadToVehicleAsync()
     {
-        if (TransferLookupOrderId is null or <= 0)
+        if (string.IsNullOrWhiteSpace(TransferQuery) && TransferLookupOrderId is null)
+            return;
+
+        if (!CanTransferLoad && !string.IsNullOrWhiteSpace(TransferQuery))
         {
             await LookupTransferAsync();
             return;
@@ -1320,7 +1548,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsBusy = true;
         try
         {
-            await LoadToVehicleCoreAsync(TransferLookupOrderId.Value, TransferQuery?.Trim() ?? string.Empty);
+            await ConfirmOutboundCoreAsync(TransferQuery?.Trim() ?? string.Empty);
         }
         finally
         {
@@ -1329,59 +1557,59 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
-    private bool CanLoadToVehicle()
+    private bool CanConfirmOutbound()
         => !IsBusy
            && !IsTransferBlocked
            && !string.IsNullOrWhiteSpace(TransferVehicleName)
-           && (TransferLookupOrderId is > 0 || !string.IsNullOrWhiteSpace(TransferQuery));
+           && (CanTransferLoad || !string.IsNullOrWhiteSpace(TransferQuery));
 
-    private async Task LoadToVehicleCoreAsync(long orderId, string reference)
+    private async Task ConfirmOutboundCoreAsync(string reference)
     {
         var vehicleName = TransferVehicleName?.Trim() ?? string.Empty;
         if (string.IsNullOrWhiteSpace(vehicleName))
         {
             TransferStatusMessage = _localization.Get("Transfer_VehicleRequired");
-            _dialogs.Show(
-                AppDialogKind.Warning,
-                _localization.Get("ModeSelect_ProductTransferTitle"),
-                TransferStatusMessage);
+            _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
             return;
         }
 
-        var warehouseId = _warehouseIds.GetTexasWarehouseId();
+        if (string.IsNullOrWhiteSpace(reference))
+        {
+            TransferStatusMessage = _localization.Get("ProductSummaryEmptyTracking");
+            _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
+            return;
+        }
+
+        var warehouseId = _warehouseSession.SelectedWarehouseId;
         if (warehouseId <= 0)
         {
-            TransferStatusMessage = _localization.Get("Warehouse_TexasIdMissing");
-            _dialogs.Show(
-                AppDialogKind.Warning,
-                _localization.Get("ModeSelect_ProductTransferTitle"),
-                TransferStatusMessage);
+            TransferStatusMessage = _localization.Get("Warehouse_NotSelected");
+            _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
             return;
         }
 
-        var result = await _warehouseApiClient.LoadToVehicleAsync(
-            orderId,
-            new WarehouseLoadToVehicleRequest(warehouseId, vehicleName));
+        var result = await _warehouseApiClient.PostOutboundAsync(
+            new WarehouseOutboundRequest(
+                warehouseId,
+                reference,
+                TransferLookupOrderId,
+                Note: $"Araç: {vehicleName}"));
         if (!result.IsSuccess || result.Value is null)
         {
             TransferStatusMessage = result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
             IsTransferSuccess = false;
-            _dialogs.Show(
-                AppDialogKind.Warning,
-                _localization.Get("ModeSelect_ProductTransferTitle"),
-                TransferStatusMessage);
+            _dialogs.Show(AppDialogKind.Warning, _localization.Get("ModeSelect_ProductOutboundTitle"), TransferStatusMessage);
             return;
         }
 
         IsTransferSuccess = true;
         CanTransferLoad = false;
-        TransferStatusMessage = _localization.Get(
-            "Transfer_LoadedSuccess",
-            result.Value.OrderNumber,
-            result.Value.VehicleName);
+        TransferStatusMessage = result.Value.Matched
+            ? _localization.Get("Outbound_MarkedWithVehicle", result.Value.OrderNumber ?? reference, vehicleName)
+            : _localization.Get("Outbound_UnmatchedSavedWithVehicle", reference, vehicleName);
         _dialogs.Show(
             AppDialogKind.Info,
-            _localization.Get("ModeSelect_ProductTransferTitle"),
+            _localization.Get("ModeSelect_ProductOutboundTitle"),
             TransferStatusMessage);
 
         _suppressTransferMatchReset = true;
@@ -1395,6 +1623,7 @@ public sealed partial class MainViewModel : ObservableObject
         }
 
         TransferLookupOrderId = null;
+        _transferLookupMatched = false;
     }
 
     [RelayCommand(CanExecute = nameof(CanClearTransfer))]
@@ -1403,6 +1632,7 @@ public sealed partial class MainViewModel : ObservableObject
     private bool CanClearTransfer()
         => !IsBusy
            && (!string.IsNullOrWhiteSpace(TransferQuery)
+               || !string.IsNullOrWhiteSpace(TransferVehicleName)
                || !string.IsNullOrWhiteSpace(TransferStatusMessage)
                || IsTransferSuccess
                || IsTransferBlocked);
@@ -1417,6 +1647,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsTransferSuccess = false;
         CanTransferLoad = false;
         TransferLookupOrderId = null;
+        _transferLookupMatched = false;
         NotifyTransferCommands();
     }
 
@@ -1448,6 +1679,7 @@ public sealed partial class MainViewModel : ObservableObject
         IsUserMenuOpen = false;
         try
         {
+            await _warehouseSession.ClearSelectionAsync();
             await _tokenStore.ClearAsync();
         }
         catch (Exception ex)
@@ -1464,18 +1696,27 @@ public sealed partial class MainViewModel : ObservableObject
             return;
 
         _lastHistoryEntry = entry;
-        _pendingOutboundOrderId = null;
+        _pendingWorkspaceOrderId = null;
+        _pendingWorkspaceReference = null;
 
         var reference = string.IsNullOrWhiteSpace(entry.TrackingNumber)
             ? entry.OrderNumber
             : entry.TrackingNumber;
-        if (!string.IsNullOrWhiteSpace(reference))
+        var warehouseId = _warehouseSession.SelectedWarehouseId;
+        if (warehouseId > 0 && !string.IsNullOrWhiteSpace(reference))
         {
             try
             {
-                var lookup = await _warehouseApiClient.LookupAsync(reference.Trim());
+                var lookup = await _warehouseApiClient.LookupAsync(reference.Trim(), warehouseId);
                 if (lookup.IsSuccess && lookup.Value is not null)
-                    _pendingOutboundOrderId = lookup.Value.OrderId;
+                {
+                    var order = lookup.Value;
+                    if (order.Matched && !string.IsNullOrWhiteSpace(order.LabelUrl))
+                    {
+                        _pendingWorkspaceOrderId = order.OrderId;
+                        _pendingWorkspaceReference = reference.Trim();
+                    }
+                }
             }
             catch (Exception ex)
             {

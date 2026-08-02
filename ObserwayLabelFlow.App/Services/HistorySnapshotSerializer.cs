@@ -27,13 +27,15 @@ internal static class HistorySnapshotSerializer
         }
     }
 
-    public static HistoryOrderSnapshot FromWarehouseLookup(WarehouseLookupDto order)
+    public static HistoryOrderSnapshot FromWarehouseLookup(WarehouseLookupDto order, ILocalizationService localization)
         => new()
         {
             AmazonOrderId = string.Empty,
             OrderSource = string.Empty,
             PaymentStatus = string.Empty,
-            OrderCancelStatus = order.IsCancelledOrReturned ? order.OrderStatusDisplay : string.Empty,
+            OrderCancelStatus = order.IsCancelledOrReturned
+                ? OrderStatusLocalizer.GetDisplay(localization, order)
+                : string.Empty,
             PaymentType = null,
             ShippingPrice = null,
             CarrierService = order.CarrierCode,
@@ -44,6 +46,11 @@ internal static class HistorySnapshotSerializer
                 Sku = p.Sku ?? string.Empty,
                 Title = p.Title,
                 Quantity = p.Quantity,
+                Weight = p.Weight ?? 0,
+                Length = p.Length ?? 0,
+                Width = p.Width ?? 0,
+                Height = p.Height ?? 0,
+                ImageUrl = p.ImageUrl,
             }).ToList(),
         };
 

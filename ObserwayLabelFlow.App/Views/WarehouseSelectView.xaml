@@ -1,0 +1,88 @@
+<UserControl x:Class="ObserwayLabelFlow.App.Views.WarehouseSelectView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             mc:Ignorable="d"
+             d:DesignHeight="480"
+             d:DesignWidth="960"
+             Background="{StaticResource Bg0Brush}">
+    <ScrollViewer VerticalScrollBarVisibility="Auto"
+                  HorizontalScrollBarVisibility="Disabled"
+                  Padding="0,0,4,0">
+        <StackPanel VerticalAlignment="Center"
+                    HorizontalAlignment="Center"
+                    MaxWidth="980"
+                    Margin="40,24">
+            <TextBlock Text="{DynamicResource Loc_WarehouseSelect_Title}"
+                       FontSize="34"
+                       FontWeight="SemiBold"
+                       Foreground="{StaticResource Text0Brush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+            <TextBlock Margin="0,10,0,12"
+                       Text="{DynamicResource Loc_WarehouseSelect_Subtitle}"
+                       FontSize="15"
+                       Foreground="{StaticResource Text1Brush}"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center" />
+
+            <TextBlock Margin="0,0,0,24"
+                       FontSize="14"
+                       Foreground="#E8A87C"
+                       TextWrapping="Wrap"
+                       HorizontalAlignment="Center"
+                       TextAlignment="Center"
+                       MaxWidth="520"
+                       Text="{Binding WarehouseSelectStatusMessage}"
+                       Visibility="{Binding WarehouseSelectStatusMessage, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
+
+            <ItemsControl ItemsSource="{Binding AvailableWarehouses}"
+                          HorizontalAlignment="Stretch">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel HorizontalAlignment="Center" />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Button Style="{StaticResource ModeSelectCardButton}"
+                                Width="260"
+                                Margin="8"
+                                Command="{Binding DataContext.SelectWarehouseCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                CommandParameter="{Binding}">
+                            <StackPanel HorizontalAlignment="Center">
+                                <Border Style="{StaticResource ModeSelectIconHost}">
+                                    <TextBlock Text="&#xE80F;"
+                                               Style="{StaticResource ModeSelectIconGlyph}" />
+                                </Border>
+                                <TextBlock Margin="0,18,0,0"
+                                           Text="{Binding Name}"
+                                           FontSize="18"
+                                           FontWeight="SemiBold"
+                                           Foreground="{StaticResource Text0Brush}"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center"
+                                           TextWrapping="Wrap" />
+                                <TextBlock Margin="0,8,0,0"
+                                           Text="{Binding Code}"
+                                           FontSize="13"
+                                           Foreground="{StaticResource Text1Brush}"
+                                           HorizontalAlignment="Center"
+                                           TextAlignment="Center" />
+                            </StackPanel>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+
+            <Button Margin="0,28,0,0"
+                    Style="{StaticResource ButtonGhost}"
+                    Height="44"
+                    MinWidth="160"
+                    HorizontalAlignment="Center"
+                    Content="{DynamicResource Loc_WarehouseSelect_Retry}"
+                    Command="{Binding ReloadWarehousesCommand}" />
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

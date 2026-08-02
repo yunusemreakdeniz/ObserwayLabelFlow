@@ -4,20 +4,18 @@ namespace ObserwayLabelFlow.Core.Warehouse;
 
 public interface IWarehouseApiClient
 {
-    Task<Result<WarehouseLookupDto>> LookupAsync(string reference, CancellationToken ct = default);
+    Task<Result<IReadOnlyList<WarehouseDto>>> GetMyWarehousesAsync(CancellationToken ct = default);
 
-    Task<Result<WarehouseInboundResult>> MarkInboundReceivedAsync(
-        long orderId,
+    Task<Result<WarehouseLookupDto>> LookupAsync(
+        string reference,
+        long warehouseId,
+        CancellationToken ct = default);
+
+    Task<Result<WarehouseInboundResult>> PostInboundAsync(
         WarehouseInboundRequest request,
         CancellationToken ct = default);
 
-    Task<Result<WarehouseLoadToVehicleResult>> LoadToVehicleAsync(
-        long orderId,
-        WarehouseLoadToVehicleRequest request,
-        CancellationToken ct = default);
-
-    Task<Result<WarehouseOutboundResult>> MarkOutboundReadyAsync(
-        long orderId,
+    Task<Result<WarehouseOutboundResult>> PostOutboundAsync(
         WarehouseOutboundRequest request,
         CancellationToken ct = default);
 }

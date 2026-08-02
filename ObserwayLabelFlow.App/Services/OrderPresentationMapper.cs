@@ -86,16 +86,38 @@ internal static class OrderPresentationMapper
         };
     }
 
-    public static ProductPreviewItem ToProductPreviewItem(WarehouseProductDto product)
-        => new()
+    public static ProductPreviewItem ToProductPreviewItem(WarehouseProductDto product, string? apiBaseUrl = null)
+    {
+        var imageUrl = product.ImageUrl;
+        if (!string.IsNullOrWhiteSpace(imageUrl))
+            imageUrl = ResolveAbsoluteUrl(imageUrl, apiBaseUrl);
+
+        return new()
         {
             OfficialName = string.IsNullOrWhiteSpace(product.Title) ? product.Asin : product.Title.Trim(),
             Asin = product.Asin,
             Sku = product.Sku ?? string.Empty,
             Quantity = product.Quantity.ToString(CultureInfo.InvariantCulture),
-            Size = string.Empty,
-            ImageUrl = null,
+            Size = FormatWarehouseProductSize(product),
+            ImageUrl = imageUrl,
         };
+    }
+
+    private static string FormatWarehouseProductSize(WarehouseProductDto product)
+    {
+        if (product.Length is null && product.Width is null && product.Height is null && product.Weight is null)
+            return string.Empty;
+
+        var length = (product.Length ?? 0).ToString("0.##", CultureInfo.InvariantCulture);
+        var width = (product.Width ?? 0).ToString("0.##", CultureInfo.InvariantCulture);
+        var height = (product.Height ?? 0).ToString("0.##", CultureInfo.InvariantCulture);
+        var weight = product.Weight is null
+            ? string.Empty
+            : ProductMeasurementFormatter.FormatPounds(product.Weight.Value);
+        if (string.IsNullOrEmpty(weight))
+            return $"{length} x {width} x {height} cm";
+        return $"{length} x {width} x {height} cm / {weight} lbs";
+    }
 
     private static string? ResolveAbsoluteUrl(string url, string? apiBaseUrl)
     {
@@ -115,16 +137,17 @@ internal static class OrderPresentationMapper
         string trackingNumber,
         LabelPrintSettings labelSettings,
         string? printedBy,
-        string notes)
+        string notes,
+        ILocalizationService localization)
         => new()
         {
             TrackingNumber = trackingNumber,
             CreatedAtUtc = DateTimeOffset.UtcNow,
             PdfUrl = order.LabelUrl ?? string.Empty,
             Notes = notes,
-            OrderNumber = order.OrderNumber,
+            OrderNumber = order.OrderNumber ?? string.Empty,
             CustomerName = null,
-            OrderStatus = order.OrderStatusDisplay,
+            OrderStatus = OrderStatusLocalizer.GetDisplay(localization, order),
             CarrierName = order.CarrierName,
             ProductCount = order.Products?.Count ?? 0,
             PrinterName = labelSettings.PrinterName,
@@ -132,7 +155,7 @@ internal static class OrderPresentationMapper
             Success = false,
             PaperSize = $"{labelSettings.PaperWidthMm:F1} x {labelSettings.PaperHeightMm:F1} mm",
             PrintedBy = printedBy,
-            SnapshotJson = HistorySnapshotSerializer.Serialize(HistorySnapshotSerializer.FromWarehouseLookup(order)),
+            SnapshotJson = HistorySnapshotSerializer.Serialize(HistorySnapshotSerializer.FromWarehouseLookup(order, localization)),
         };
 
     public static string FormatCarrierDisplay(string? carrierName, string? carrierService)

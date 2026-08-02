@@ -490,13 +490,13 @@ public partial class MainWindow : Window
 
     private void Window_Activated(object? sender, EventArgs e)
     {
-        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
+        if (DataContext is MainViewModel { IsSimpleInboundVisible: true })
         {
             ScheduleInboundFocus();
             return;
         }
 
-        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+        if (DataContext is MainViewModel { IsOutboundVisible: true })
         {
             ScheduleTransferFocus();
             return;
@@ -511,13 +511,16 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm)
             return;
 
-        if (e.PropertyName == nameof(MainViewModel.CurrentMode))
+        if (e.PropertyName is nameof(MainViewModel.CurrentMode)
+            or nameof(MainViewModel.IsSimpleInboundVisible)
+            or nameof(MainViewModel.IsDetailedInboundVisible)
+            or nameof(MainViewModel.IsOutboundVisible))
         {
-            if (vm.CurrentMode == AppWorkspaceMode.Inbound)
+            if (vm.IsSimpleInboundVisible)
                 ScheduleInboundFocus();
-            else if (vm.CurrentMode == AppWorkspaceMode.Transfer)
+            else if (vm.IsOutboundVisible)
                 ScheduleTransferFocus();
-            else if (vm.CurrentMode == AppWorkspaceMode.Outbound)
+            else if (vm.IsDetailedInboundVisible)
                 ScheduleTrackingFocus();
             return;
         }
@@ -543,9 +546,9 @@ public partial class MainWindow : Window
 
     private void FocusActiveInput()
     {
-        if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Inbound })
+        if (DataContext is MainViewModel { IsSimpleInboundVisible: true })
             ScheduleInboundFocus();
-        else if (DataContext is MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+        else if (DataContext is MainViewModel { IsOutboundVisible: true })
             ScheduleTransferFocus();
         else
             ScheduleTrackingFocus();
@@ -561,7 +564,7 @@ public partial class MainWindow : Window
 
     private void FocusTransferTrackingBox()
     {
-        if (DataContext is not MainViewModel { CurrentMode: AppWorkspaceMode.Transfer })
+        if (DataContext is not MainViewModel { IsOutboundVisible: true })
             return;
 
         TransferHost?.FocusQueryBox();
@@ -620,7 +623,7 @@ public partial class MainWindow : Window
         if (DataContext is not MainViewModel vm)
             return false;
 
-        if (vm.CurrentMode != AppWorkspaceMode.Outbound)
+        if (!vm.IsDetailedInboundVisible)
             return false;
 
         if (vm.SelectedTabIndex != 0)
@@ -662,6 +665,18 @@ public partial class MainWindow : Window
         _ = ExecuteBarcodeActionAsync(vm);
     }
 
+    private async Task ExecuteTransferLookupAsync(MainViewModel vm)
+    {
+        try
+        {
+            await vm.LookupTransferCommand.ExecuteAsync(null);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Ürün çıkış sorgusu başarısız.");
+        }
+    }
+
     private async Task ExecuteInboundLookupAsync(MainViewModel vm)
     {
         try
@@ -677,27 +692,6 @@ public partial class MainWindow : Window
         {
             vm.ClearInboundTrackingForNextScan();
             ScheduleInboundFocus();
-        }
-    }
-
-    private async Task ExecuteTransferLookupAsync(MainViewModel vm)
-    {
-        try
-        {
-            if (!string.IsNullOrWhiteSpace(vm.TransferVehicleName))
-                await vm.LoadToVehicleCommand.ExecuteAsync(null);
-            else
-                await vm.LookupTransferCommand.ExecuteAsync(null);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Transfer barkod/elle sorgu hatası. Query={Query}", vm.TransferQuery);
-            _dialogs.Show(AppDialogKind.Error, _localization.Get("ModeSelect_ProductTransferTitle"), _localization.Get("Error_Connection"), this);
-        }
-        finally
-        {
-            vm.ClearTransferTrackingForNextScan();
-            ScheduleTransferFocus();
         }
     }
 

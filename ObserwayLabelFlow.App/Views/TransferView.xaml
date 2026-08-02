@@ -35,13 +35,13 @@
                 <StackPanel Grid.Column="1"
                             Margin="16,0,0,0"
                             VerticalAlignment="Center">
-                    <TextBlock Text="{DynamicResource Loc_ModeSelect_ProductTransferTitle}"
+                    <TextBlock Text="{DynamicResource Loc_ModeSelect_ProductOutboundTitle}"
                                FontSize="22"
                                FontWeight="SemiBold"
                                Foreground="{StaticResource Text0Brush}"
                                VerticalAlignment="Center" />
                     <TextBlock Margin="0,6,0,0"
-                               Text="{DynamicResource Loc_ModeSelect_ProductTransferDesc}"
+                               Text="{DynamicResource Loc_ModeSelect_ProductOutboundDesc}"
                                FontSize="13"
                                Foreground="{StaticResource Text1Brush}"
                                TextWrapping="Wrap" />

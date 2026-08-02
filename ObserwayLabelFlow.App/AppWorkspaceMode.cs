@@ -2,8 +2,8 @@ namespace ObserwayLabelFlow.App;
 
 public enum AppWorkspaceMode
 {
+    WarehouseSelect,
     ModeSelect,
     Inbound,
-    Transfer,
     Outbound
 }
