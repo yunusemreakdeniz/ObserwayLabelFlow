@@ -13,10 +13,10 @@
     <Company>Obserway</Company>
     <Copyright>Copyright © Obserway</Copyright>
     <!-- Semantic version: major.minor.fix — bump in publish/installer scripts too -->
-    <Version>1.1.0</Version>
-    <AssemblyVersion>1.1.0.0</AssemblyVersion>
-    <FileVersion>1.1.0.0</FileVersion>
-    <InformationalVersion>1.1.0</InformationalVersion>
+    <Version>1.2.0</Version>
+    <AssemblyVersion>1.2.0.0</AssemblyVersion>
+    <FileVersion>1.2.0.0</FileVersion>
+    <InformationalVersion>1.2.0</InformationalVersion>
   </PropertyGroup>
 
   <ItemGroup>

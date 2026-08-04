@@ -120,7 +120,8 @@ public sealed class WarehouseApiClient(
                 payload.OrderId,
                 payload.OrderNumber?.Trim(),
                 payload.MatchStatus,
-                payload.InboundReceivedAt));
+                payload.InboundReceivedAt,
+                payload.AlreadyExists));
         }
 
         return await FailAsync<WarehouseInboundResult>(resp, "Depo girişi başarısız.", ct);
@@ -147,6 +148,7 @@ public sealed class WarehouseApiClient(
             WarehouseId = request.WarehouseId,
             Reference = request.Reference.Trim(),
             OrderId = request.OrderId,
+            VehicleName = string.IsNullOrWhiteSpace(request.VehicleName) ? null : request.VehicleName.Trim(),
             Note = request.Note
         }, options: HttpJson.DefaultOptions);
 
@@ -166,7 +168,9 @@ public sealed class WarehouseApiClient(
                 payload.OrderNumber?.Trim(),
                 payload.MatchStatus,
                 payload.LabelUrl,
-                payload.OutboundReadyAt));
+                payload.OutboundReadyAt,
+                payload.AlreadyExists,
+                string.IsNullOrWhiteSpace(payload.VehicleName) ? request.VehicleName?.Trim() : payload.VehicleName.Trim()));
         }
 
         return await FailAsync<WarehouseOutboundResult>(resp, "Çıkış işaretleme başarısız.", ct);
@@ -227,6 +231,7 @@ public sealed class WarehouseApiClient(
         public string? OrderNumber { get; set; }
         public string? MatchStatus { get; set; }
         public DateTimeOffset? InboundReceivedAt { get; set; }
+        public bool AlreadyExists { get; set; }
     }
 
     private sealed class OutboundBody
@@ -239,6 +244,9 @@ public sealed class WarehouseApiClient(
 
         [JsonPropertyName("orderId")]
         public long? OrderId { get; set; }
+
+        [JsonPropertyName("vehicleName")]
+        public string? VehicleName { get; set; }
 
         [JsonPropertyName("note")]
         public string? Note { get; set; }
@@ -255,6 +263,8 @@ public sealed class WarehouseApiClient(
         public string? MatchStatus { get; set; }
         public string? LabelUrl { get; set; }
         public DateTimeOffset? OutboundReadyAt { get; set; }
+        public bool AlreadyExists { get; set; }
+        public string? VehicleName { get; set; }
     }
 
 }

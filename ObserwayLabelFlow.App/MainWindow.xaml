@@ -198,11 +198,51 @@
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto" />
                 <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
                 <RowDefinition Height="*" />
             </Grid.RowDefinitions>
 
+            <Border Grid.Row="0" Style="{StaticResource WorkspaceModeBanner}" Margin="0,0,0,12">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="Auto" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <Border Style="{StaticResource ModeSelectIconHost}"
+                            Width="52"
+                            Height="52"
+                            VerticalAlignment="Center">
+                        <TextBlock Text="&#xE8F1;"
+                                   Style="{StaticResource ModeSelectIconGlyph}"
+                                   FontSize="22" />
+                    </Border>
+
+                    <StackPanel Grid.Column="1"
+                                Margin="16,0,0,0"
+                                VerticalAlignment="Center">
+                        <TextBlock Text="{DynamicResource Loc_ModeSelect_ProductInboundTitle}"
+                                   FontSize="22"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text0Brush}"
+                                   VerticalAlignment="Center" />
+                        <TextBlock Margin="0,4,0,0"
+                                   FontSize="14"
+                                   FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentBrush}"
+                                   Text="{Binding SelectedWarehouseDisplayName}"
+                                   Visibility="{Binding SelectedWarehouseDisplayName, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
+                        <TextBlock Margin="0,6,0,0"
+                                   Text="{DynamicResource Loc_ModeSelect_ProductInboundDesc}"
+                                   FontSize="13"
+                                   Foreground="{StaticResource Text1Brush}"
+                                   TextWrapping="Wrap" />
+                    </StackPanel>
+                </Grid>
+            </Border>
+
             <!-- Command bar: tracking + query + device status -->
-            <Border Grid.Row="0" Style="{StaticResource ToolbarBar}" Padding="14,10">
+            <Border Grid.Row="1" Style="{StaticResource ToolbarBar}" Padding="14,10">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="1.2*" MinWidth="140" />
@@ -289,7 +329,7 @@
                 </Grid>
             </Border>
 
-            <Border Grid.Row="1"
+            <Border Grid.Row="2"
                     Margin="0,8,0,0"
                     Padding="14,10"
                     CornerRadius="{StaticResource R12}"
@@ -301,10 +341,11 @@
                            FontSize="14"
                            FontWeight="SemiBold"
                            Foreground="#E8A87C"
-                           TextAlignment="Center" />
+                           TextAlignment="Center"
+                           TextWrapping="Wrap" />
             </Border>
 
-            <TabControl Grid.Row="2"
+            <TabControl Grid.Row="3"
                         VerticalAlignment="Stretch"
                         SelectedIndex="{Binding SelectedTabIndex, Mode=TwoWay}"
                         Style="{StaticResource TabControlFullWidth}">

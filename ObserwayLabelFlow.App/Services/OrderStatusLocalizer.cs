@@ -26,5 +26,12 @@ internal static class OrderStatusLocalizer
     }
 
     public static string GetDisplay(ILocalizationService localization, WarehouseLookupDto order)
-        => GetDisplay(localization, order.OrderStatus);
+    {
+        if (order.OrderStatus is int statusCode)
+            return GetDisplay(localization, statusCode);
+
+        return string.IsNullOrWhiteSpace(order.OrderStatusDisplay)
+            ? string.Empty
+            : order.OrderStatusDisplay.Trim();
+    }
 }

@@ -702,6 +702,21 @@ public sealed partial class MainViewModel : ObservableObject
             return false;
         }
 
+        if (post.Value.AlreadyExists)
+        {
+            var already = _localization.Get(
+                "Inbound_AlreadyExists",
+                post.Value.OrderNumber ?? order.OrderNumber ?? reference);
+            ProductSummary = already;
+            LastQuerySucceeded = true;
+            LastQueryFailedMessage = null;
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                already);
+            return true;
+        }
+
         var orderNumber = post.Value.OrderNumber ?? order.OrderNumber;
         var message = order.Matched
             ? order.IsCancelledOrReturned
@@ -955,6 +970,17 @@ public sealed partial class MainViewModel : ObservableObject
 
         _pendingWorkspaceOrderId = null;
         _pendingWorkspaceReference = null;
+        if (result.Value.AlreadyExists)
+        {
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductInboundTitle"),
+                _localization.Get(
+                    "Inbound_AlreadyExists",
+                    result.Value.OrderNumber ?? reference));
+            return;
+        }
+
         _dialogs.Show(
             AppDialogKind.Info,
             _localization.Get("ModeSelect_ProductInboundTitle"),
@@ -1296,23 +1322,37 @@ public sealed partial class MainViewModel : ObservableObject
             }
 
             IsObsMatched = true;
-            if (order.Matched)
+            if (post.Value.AlreadyExists)
+            {
+                InboundStatusMessage = _localization.Get(
+                    "Inbound_AlreadyExists",
+                    post.Value.OrderNumber ?? order.OrderNumber ?? query);
+                _dialogs.Show(
+                    AppDialogKind.Warning,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
+            }
+            else if (order.Matched)
             {
                 var orderNumber = post.Value.OrderNumber ?? order.OrderNumber;
                 InboundStatusMessage = IsInboundReturnProduct
                     ? _localization.Get("Inbound_ReturnProductMarked", orderNumber)
                     : _localization.Get("Inbound_MarkedSuccess", orderNumber);
+                await SaveInboundHistoryAsync(query, post.Value.OrderNumber ?? order.OrderNumber, true, null);
+                _dialogs.Show(
+                    IsInboundReturnProduct ? AppDialogKind.Warning : AppDialogKind.Info,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
             }
             else
             {
                 InboundStatusMessage = _localization.Get("Inbound_UnmatchedSaved", query);
+                await SaveInboundHistoryAsync(query, post.Value.OrderNumber ?? order.OrderNumber, true, null);
+                _dialogs.Show(
+                    AppDialogKind.Info,
+                    _localization.Get("ModeSelect_ProductInboundTitle"),
+                    InboundStatusMessage);
             }
-
-            await SaveInboundHistoryAsync(query, post.Value.OrderNumber ?? order.OrderNumber, true, null);
-            _dialogs.Show(
-                IsInboundReturnProduct ? AppDialogKind.Warning : AppDialogKind.Info,
-                _localization.Get("ModeSelect_ProductInboundTitle"),
-                InboundStatusMessage);
 
             _suppressInboundMatchReset = true;
             try
@@ -1593,7 +1633,7 @@ public sealed partial class MainViewModel : ObservableObject
                 warehouseId,
                 reference,
                 TransferLookupOrderId,
-                Note: $"Araç: {vehicleName}"));
+                VehicleName: vehicleName));
         if (!result.IsSuccess || result.Value is null)
         {
             TransferStatusMessage = result.Errors.FirstOrDefault() ?? _localization.Get("Error_Connection");
@@ -1602,15 +1642,31 @@ public sealed partial class MainViewModel : ObservableObject
             return;
         }
 
+        var savedVehicle = string.IsNullOrWhiteSpace(result.Value.VehicleName)
+            ? vehicleName
+            : result.Value.VehicleName.Trim();
         IsTransferSuccess = true;
         CanTransferLoad = false;
-        TransferStatusMessage = result.Value.Matched
-            ? _localization.Get("Outbound_MarkedWithVehicle", result.Value.OrderNumber ?? reference, vehicleName)
-            : _localization.Get("Outbound_UnmatchedSavedWithVehicle", reference, vehicleName);
-        _dialogs.Show(
-            AppDialogKind.Info,
-            _localization.Get("ModeSelect_ProductOutboundTitle"),
-            TransferStatusMessage);
+        if (result.Value.AlreadyExists)
+        {
+            TransferStatusMessage = _localization.Get(
+                "Outbound_AlreadyExists",
+                result.Value.OrderNumber ?? reference);
+            _dialogs.Show(
+                AppDialogKind.Warning,
+                _localization.Get("ModeSelect_ProductOutboundTitle"),
+                TransferStatusMessage);
+        }
+        else
+        {
+            TransferStatusMessage = result.Value.Matched
+                ? _localization.Get("Outbound_MarkedWithVehicle", result.Value.OrderNumber ?? reference, savedVehicle)
+                : _localization.Get("Outbound_UnmatchedSavedWithVehicle", reference, savedVehicle);
+            _dialogs.Show(
+                AppDialogKind.Info,
+                _localization.Get("ModeSelect_ProductOutboundTitle"),
+                TransferStatusMessage);
+        }
 
         _suppressTransferMatchReset = true;
         try

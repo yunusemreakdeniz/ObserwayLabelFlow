@@ -16,12 +16,14 @@ public sealed record WarehouseInboundResult(
     long? OrderId,
     string? OrderNumber,
     string? MatchStatus,
-    DateTimeOffset? InboundReceivedAt);
+    DateTimeOffset? InboundReceivedAt,
+    bool AlreadyExists = false);
 
 public sealed record WarehouseOutboundRequest(
     long WarehouseId,
     string Reference,
     long? OrderId = null,
+    string? VehicleName = null,
     string? Note = null);
 
 public sealed record WarehouseOutboundResult(
@@ -33,4 +35,6 @@ public sealed record WarehouseOutboundResult(
     string? OrderNumber,
     string? MatchStatus,
     string? LabelUrl,
-    DateTimeOffset? OutboundReadyAt);
+    DateTimeOffset? OutboundReadyAt,
+    bool AlreadyExists = false,
+    string? VehicleName = null);

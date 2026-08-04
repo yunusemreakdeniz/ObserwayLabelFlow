@@ -13,7 +13,7 @@ public sealed class WarehouseLookupDto
     public bool AllowOutbound { get; set; }
     public long? OrderId { get; set; }
     public string? OrderNumber { get; set; }
-    public int OrderStatus { get; set; }
+    public int? OrderStatus { get; set; }
     public string OrderStatusDisplay { get; set; } = string.Empty;
     public bool CanLoadToVehicle { get; set; }
     public string? BlockReason { get; set; }

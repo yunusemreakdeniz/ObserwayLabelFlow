@@ -40,6 +40,12 @@
                                FontWeight="SemiBold"
                                Foreground="{StaticResource Text0Brush}"
                                VerticalAlignment="Center" />
+                    <TextBlock Margin="0,4,0,0"
+                               FontSize="14"
+                               FontWeight="SemiBold"
+                               Foreground="{StaticResource AccentBrush}"
+                               Text="{Binding SelectedWarehouseDisplayName}"
+                               Visibility="{Binding SelectedWarehouseDisplayName, Converter={StaticResource NonEmptyStringToVisibilityConverter}}" />
                     <TextBlock Margin="0,6,0,0"
                                Text="{DynamicResource Loc_ModeSelect_ProductOutboundDesc}"
                                FontSize="13"
